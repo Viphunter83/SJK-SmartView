@@ -10,6 +10,7 @@ import os
 import time
 import uuid
 import base64
+import logging
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
@@ -19,14 +20,36 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from app.schemas import GenerationResponse, LocationInfo, MockupHistoryItem, CornerDetectionResponse, Point
-from app.database import engine, get_db
+from app.database import engine, get_db, SessionLocal
 from app import models
 from app.storage import storage_service
+from app.seed_vietnam import seed_vietnam
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────
-# Создание таблиц при запуске
+# Lifespan & Startup
 # ─────────────────────────────────────────────────────────────
-models.Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Check if database is empty and seed if necessary
+    models.Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        count = db.query(models.Location).count()
+        if count == 0:
+            logger.info("Database is empty. Seeding real Shojiki Group locations...")
+            seed_vietnam()
+        else:
+            logger.info(f"Database already has {count} locations.")
+    except Exception as e:
+        logger.error(f"Error during startup seeding: {e}")
+    finally:
+        db.close()
+    yield
+    # Shutdown logic
 
 # ─────────────────────────────────────────────────────────────
 # Modal AI функция (опциональная)
@@ -62,8 +85,9 @@ ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
 # ─────────────────────────────────────────────────────────────
 app = FastAPI(
     title="SJK SmartView API",
-    version="0.4.0",
-    description="AI Dispatcher for DOOH mockup generation — Shojiki Group Vietnam"
+    version="1.0.0",
+    description="AI Dispatcher for DOOH mockup generation — Shojiki Group Vietnam",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -83,18 +107,22 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # ─────────────────────────────────────────────────────────────
 # Health
 # ─────────────────────────────────────────────────────────────
+@app.get("/health", tags=["Health"])
+def health_check():
+    return {"status": "healthy", "service": "sjk-smartview-api"}
+
 @app.get("/", tags=["Health"])
 async def root():
     return {
         "status": "online",
-        "version": "0.4.0",
+        "version": "1.0.0",
         "service": "SJK SmartView API",
         "ai_pipeline": "modal_gpu" if modal_fn else "client_canvas",
         "modal_connected": modal_fn is not None,
     }
 
 @app.get("/api/v1/health", tags=["Health"])
-async def health_check():
+async def api_health_check():
     return {
         "status": "healthy",
         "ai_available": modal_fn is not None,
