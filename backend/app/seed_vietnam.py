@@ -33,6 +33,7 @@ def seed_vietnam():
     locations = [
         # ─── HO CHI MINH CITY ───────────────────────────────────────
         {
+            "id": "f18921fb-f339-49c9-83bb-c7620cd2d72f",
             "name": "Terra Royal LED Screen",
             "category": "Outdoor Digital",
             "address": "83 Lý Chính Thắng, Quận 3, HCMC",
@@ -41,7 +42,6 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/template/uploads/2021/07/quang-cao-led-ngoai-troi-nga-tu-ly-chinh-thang-nam-ky-khoi-nghia-7.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Вертикальный экран в верхне-правой части снимка (1500x1125)
             "screen_geometry": [
                 {"x": 344, "y":  45},
                 {"x": 435, "y":  45},
@@ -50,6 +50,7 @@ def seed_vietnam():
             ],
         },
         {
+            "id": "80aa83c2-c4cd-4e2c-9334-fd6e8362398a",
             "name": "20 Nguyen Hue 3D LED",
             "category": "3D Digital",
             "address": "20 Nguyễn Huệ, Quận 1, HCMC",
@@ -58,7 +59,6 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2024/11/man-hinh-led-20-nguyen-hue-2.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Оранжевый SJK в верхне-центральной части (1330x996)
             "screen_geometry": [
                 {"x": 310, "y":  25},
                 {"x": 472, "y":  14},
@@ -67,6 +67,7 @@ def seed_vietnam():
             ],
         },
         {
+            "id": "c7726d9c-71f4-4d89-abfe-393527bf2dde",
             "name": "KFC Le Lai Intersection",
             "category": "3D Digital",
             "address": "78 Lê Lai, Quận 1, HCMC (Phu Dong Cross)",
@@ -75,7 +76,6 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2024/06/pepsi-chay-quang-cao-tren-man-hinh-led-kfc-quan-1.jpg",
             "aspect_ratio": 2.39,
             "is_active": True,
-            # Широкий баннер Pepsi над KFC (960x640)
             "screen_geometry": [
                 {"x": 250, "y": 103},
                 {"x": 567, "y": 131},
@@ -85,6 +85,7 @@ def seed_vietnam():
         },
         # ─── HANOI ──────────────────────────────────────────────────
         {
+            "id": "58de7667-b3c4-4b61-8187-51c2fdcc9ba3",
             "name": "Ham Ca Map (Shark Fin) Hanoi",
             "category": "3D Digital",
             "address": "1-13 Đinh Tiên Hoàng, Hoàn Kiếm, Hanoi",
@@ -93,15 +94,15 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2024/04/led-ham-ca-map-ban-dem-6.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Фото не загружается (1382 bytes) — используем центральные координаты
             "screen_geometry": [
-                {"x": 200, "y": 100},
-                {"x": 600, "y":  95},
-                {"x": 605, "y": 350},
-                {"x": 195, "y": 355},
+                {"x": 200, "y": 150},
+                {"x": 600, "y": 150},
+                {"x": 600, "y": 450},
+                {"x": 200, "y": 450},
             ],
         },
         {
+            "id": "d3a8bb24-5ce2-49b8-bd68-dbe58804d7f8",
             "name": "VTV Building Screen",
             "category": "Outdoor Digital",
             "address": "43 Nguyễn Chí Thanh, Ba Đình, Hanoi",
@@ -110,7 +111,6 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2021/08/led-vtv-43-nguyen-chi-thanh-ha-noi-2.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Горизонтальный экран VietinBank, центр-лево (1432x1053)
             "screen_geometry": [
                 {"x": 218, "y": 217},
                 {"x": 321, "y": 217},
@@ -119,6 +119,7 @@ def seed_vietnam():
             ],
         },
         {
+            "id": "bc9e3d1b-8cd2-4055-951d-14c87a896773",
             "name": "Vincom Ba Trieu LED",
             "category": "Outdoor Digital",
             "address": "191 Bà Triệu, Hai Bà Trưng, Hanoi",
@@ -127,7 +128,6 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2023/01/led-ba-trieu-ha-noi-1.jpeg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Экран Nova на крыше, верх-слева (1907x1065)
             "screen_geometry": [
                 {"x": 138, "y":  65},
                 {"x": 223, "y":  65},
@@ -138,7 +138,8 @@ def seed_vietnam():
     ]
 
     for loc_data in locations:
-        location = models.Location(id=uuid.uuid4(), **loc_data)
+        loc_id = uuid.UUID(loc_data.pop("id"))
+        location = models.Location(id=loc_id, **loc_data)
         db.add(location)
 
     db.commit()
