@@ -1,22 +1,26 @@
-version: '3.8'
-
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: sjk-backend
     ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-    environment:
-      - PORT=8000
-      - DATABASE_URL=postgresql://sjk_user:sjk_pass@db:5432/sjk_db
+      - "8001:8000"
     env_file:
       - .env
+    environment:
+      # DATABASE_URL из .env перекрывается здесь → используем docker-internal хост
+      - DATABASE_URL=postgresql://sjk_user:sjk_pass@db:5432/sjk_db
+      # Firebase Admin SDK: путь к файлу внутри контейнера (копируется Dockerfile)
+      - FIREBASE_CREDENTIAL_PATH=/app/app/service_account.json
+      - FIREBASE_STORAGE_BUCKET=sjk-smartview.firebasestorage.app
+      - ALLOWED_ORIGINS=http://localhost:3000
     networks:
       - sjk-network
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
   db:
     image: postgres:16-alpine
@@ -31,21 +35,27 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - sjk-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sjk_user -d sjk_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: sjk-frontend
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
     networks:
       - sjk-network
     depends_on:
       - backend
+    restart: unless-stopped
 
 networks:
   sjk-network:

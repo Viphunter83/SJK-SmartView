@@ -2,25 +2,43 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Box, Sparkles, Loader2, ArrowRight } from "lucide-react"
+import { Box, Sparkles, Loader2, ArrowRight, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { auth } from "@/lib/firebase"
+import { signInWithEmailAndPassword } from "firebase/auth"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const [error, setError] = React.useState<string | null>(null)
   const router = useRouter()
 
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    // Имитация авторизации для MVP
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
       router.push("/")
-    }, 1500)
+    } catch (err: unknown) {
+      console.error("Login error:", err)
+      // Переводим Firebase коды ошибок в понятные сообщения
+      const code = (err as { code?: string }).code || ""
+      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("Неверный email или пароль")
+      } else if (code === "auth/too-many-requests") {
+        setError("Слишком много попыток. Попробуйте позже")
+      } else {
+        setError("Ошибка входа. Проверьте соединение")
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -46,8 +64,10 @@ export default function LoginPage() {
                 <Label htmlFor="email" className="text-zinc-400 text-xs font-bold uppercase tracking-widest pl-1">Email</Label>
                 <Input
                   id="email"
-                  placeholder="name@shojiki.ru"
+                  placeholder="name@shojiki.vn"
                   type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   autoCapitalize="none"
                   autoComplete="email"
                   autoCorrect="off"
@@ -61,11 +81,19 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                   className="bg-zinc-900/50 border-white/5 focus-visible:ring-primary/50 h-11"
                   required
                 />
               </div>
+              {error && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {error}
+                </div>
+              )}
               <Button disabled={isLoading} className="h-11 font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -78,6 +106,7 @@ export default function LoginPage() {
             </div>
           </form>
         </CardContent>
+
         <CardFooter className="flex flex-col gap-4 text-center">
           <div className="text-xs text-zinc-600 flex items-center gap-1">
             <Sparkles className="h-3 w-3" /> Корпоративный доступ Shojiki

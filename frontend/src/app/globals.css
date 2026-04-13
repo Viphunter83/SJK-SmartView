@@ -128,3 +128,35 @@
     @apply font-sans;
   }
 }
+
+/* ── Leaflet Map Custom Styles ─────────────────────────────── */
+.leaflet-container {
+  background: #09090b !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-tip-container {
+  display: none;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #27272a !important;
+}

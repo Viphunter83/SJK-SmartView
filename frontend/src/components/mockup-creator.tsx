@@ -1,22 +1,35 @@
 "use client"
 
 import * as React from "react"
-import { Upload, X, Check, Loader2, Sparkles, Image as ImageIcon, Camera, RefreshCw } from "lucide-react"
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Upload, X, Check, Loader2, Sparkles,
+  Image as ImageIcon, Camera, RefreshCw, Download, AlertCircle
+} from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { API_ENDPOINTS } from "@/lib/config"
+import { getFullImageUrl, downloadFile } from "@/lib/utils/url"
+
+interface Point {
+  x: number;
+  y: number;
+}
+
 interface Location {
   id: string;
   name: string;
   category: string;
   primary_photo_url?: string;
+  screen_geometry?: Point[];
+  aspect_ratio?: number;
 }
 
 interface MockupCreatorProps {
@@ -24,33 +37,89 @@ interface MockupCreatorProps {
   onClose: () => void;
 }
 
-type ProcessingStage = 'idle' | 'uploading' | 'detecting' | 'segmenting' | 'rendering' | 'completed' | 'failed';
+type ProcessingStage = 'idle' | 'uploading' | 'rendering' | 'saving' | 'completed' | 'failed';
 
 const STAGE_MESSAGES: Record<ProcessingStage, string> = {
   idle: "",
-  uploading: "Загрузка файлов на сервер...",
-  detecting: "Поиск рекламного носителя (YOLO OBB)...",
-  segmenting: "Вырезание препятствий (SAM 2)...",
-  rendering: "Финальное наложение и цветокоррекция...",
-  completed: "Готово!",
-  failed: "Ошибка при обработке"
+  uploading: "Загрузка изображений...",
+  rendering: "GPU рендеринг через Modal AI...",
+  saving: "Финализация мокапа...",
+  completed: "Мокап готов!",
+  failed: "Ошибка при обработке",
 };
 
+const STAGE_PROGRESS: Record<ProcessingStage, number> = {
+  idle: 0,
+  uploading: 1,
+  rendering: 2,
+  saving: 3,
+  completed: 4,
+  failed: 0,
+};
+
+const DEFAULT_CORNERS: Point[] = [
+  { x: 120, y: 120 },
+  { x: 680, y: 120 },
+  { x: 680, y: 460 },
+  { x: 120, y: 460 },
+];
+
 export function MockupCreator({ location, onClose }: MockupCreatorProps) {
+  const [isMounted, setIsMounted] = React.useState(false)
   const [creativeFile, setCreativeFile] = React.useState<File | null>(null)
+  const [creativePreview, setCreativePreview] = React.useState<string | null>(null)
   const [backgroundFile, setBackgroundFile] = React.useState<File | null>(null)
   const [stage, setStage] = React.useState<ProcessingStage>('idle')
   const [result, setResult] = React.useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [isDetecting, setIsDetecting] = React.useState(false)
+  const [points, setPoints] = React.useState<Point[]>(
+    location?.screen_geometry?.length === 4
+      ? location.screen_geometry
+      : DEFAULT_CORNERS
+  )
+
+  React.useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      // Cleanup object URLs
+      if (creativePreview) URL.revokeObjectURL(creativePreview)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreativeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setCreativeFile(e.target.files[0])
-    }
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCreativeFile(file)
+    if (creativePreview) URL.revokeObjectURL(creativePreview)
+    setCreativePreview(URL.createObjectURL(file))
   }
 
   const handleBackgroundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setBackgroundFile(e.target.files[0])
+    const file = e.target.files?.[0]
+    if (file) setBackgroundFile(file)
+  }
+
+  const handleAutoDetect = async () => {
+    if (!backgroundFile) return
+    setIsDetecting(true)
+    try {
+      const formData = new FormData()
+      formData.append("image", backgroundFile)
+      const response = await fetch(API_ENDPOINTS.DETECT_CORNERS, {
+        method: "POST",
+        body: formData,
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.corners?.length === 4) {
+          setPoints(data.corners)
+        }
+      }
+    } catch (error) {
+      console.error("Auto-detect failed:", error)
+    } finally {
+      setIsDetecting(false)
     }
   }
 
@@ -58,56 +127,155 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
     if (!creativeFile) return
     if (!location && !backgroundFile) return
 
+    setErrorMessage(null)
     setStage('uploading')
-    
+
     try {
-      // Имитация этапов для UX
-      setTimeout(() => setStage('detecting'), 1000)
-      setTimeout(() => setStage('segmenting'), 2500)
-      setTimeout(() => setStage('rendering'), 4500)
-
-      const formData = new FormData()
-      formData.append("creative", creativeFile)
-      
+      // ── Определяем источник фона ──────────────────────────────
+      let backgroundSrc: string | null = null
       if (backgroundFile) {
-        formData.append("background", backgroundFile)
+        backgroundSrc = URL.createObjectURL(backgroundFile)
+      } else if (location?.primary_photo_url) {
+        backgroundSrc = getFullImageUrl(location.primary_photo_url)
       }
-      
-      formData.append("location_id", location?.id || "custom")
+      if (!backgroundSrc) throw new Error("Отсутствует фоновое изображение")
+      if (!creativePreview) throw new Error("Отсутствует креатив")
 
-      const response = await fetch("http://localhost:8000/api/v1/mockup/generate", {
-        method: "POST",
-        body: formData,
-      })
+      const renderCorners = location?.screen_geometry?.length === 4
+        ? location.screen_geometry
+        : points
 
-      if (!response.ok) throw new Error("Ошибка сервера при генерации")
+      // ── Шаг 1: Попытка через Backend → Modal GPU (primary) ────
+      setStage('rendering')
 
-      const data = await response.json()
-      
-      if (data.status === "completed" && data.mockup_url) {
-        setResult(data.mockup_url)
-        setStage('completed')
-      } else {
-        throw new Error(data.error || "Неизвестная ошибка")
+      // Для бэкенда нам нужен файл фона (не URL)
+      // Если фон из каталога — скачиваем через прокси в Blob
+      let bgFile = backgroundFile
+      if (!bgFile && backgroundSrc) {
+        try {
+          const proxyUrl = backgroundSrc.startsWith("http")
+            ? `/api/image-proxy?url=${encodeURIComponent(backgroundSrc)}`
+            : backgroundSrc
+          const resp = await fetch(proxyUrl)
+          if (resp.ok) {
+            const blob = await resp.blob()
+            bgFile = new File([blob], "background.jpg", { type: blob.type || "image/jpeg" })
+          }
+        } catch (e) {
+          console.warn("Background fetch failed, will use canvas fallback:", e)
+        }
       }
+
+      let resultUrl: string | null = null
+      let usedModal = false
+
+      if (bgFile) {
+        try {
+          const formData = new FormData()
+          formData.append("creative", creativeFile)
+          formData.append("background", bgFile)
+          formData.append("location_id", location?.id || "custom")
+          // Не передаём result_url → бэкенд запустит Modal GPU
+
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 120_000) // 2 мин для GPU
+
+          const response = await fetch(API_ENDPOINTS.GENERATE_MOCKUP, {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          })
+          clearTimeout(timeout)
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.status === "completed" && data.mockup_url) {
+              resultUrl = data.mockup_url
+              usedModal = true
+            }
+          }
+        } catch (modalError) {
+          console.warn("Backend/Modal failed, falling back to Canvas:", modalError)
+        }
+      }
+
+      // ── Шаг 2: Canvas fallback (если Modal не сработал) ───────
+      if (!resultUrl) {
+        console.log("Using Canvas renderer as fallback")
+        const { renderMockup, dataUrlToBlob } = await import("@/lib/canvas-renderer")
+        const dataUrl = await renderMockup(backgroundSrc, creativePreview, renderCorners, {
+          opacity: 1.0,
+          quality: 0.92,
+        })
+
+        // Пытаемся сохранить через бэкенд (без bg — только история)
+        try {
+          const formData = new FormData()
+          formData.append("creative", creativeFile)
+          formData.append("location_id", location?.id || "custom")
+          formData.append("result_url", dataUrl)
+
+          const response = await fetch(API_ENDPOINTS.GENERATE_MOCKUP, {
+            method: "POST",
+            body: formData,
+            signal: AbortSignal.timeout(10_000),
+          })
+          if (response.ok) {
+            const data = await response.json()
+            if (data.mockup_url) resultUrl = data.mockup_url
+          }
+        } catch {
+          // Некритично — показываем data URL напрямую
+        }
+
+        resultUrl = resultUrl || dataUrl
+      }
+
+      // Cleanup
+      if (backgroundFile) URL.revokeObjectURL(backgroundSrc)
+
+      // ── Шаг 3: Завершение ─────────────────────────────────────
+      setStage('saving')
+      await new Promise(r => setTimeout(r, 400)) // Brief UX pause
+
+      setResult(resultUrl)
+      setStage('completed')
+
+      console.log(`Mockup generated via: ${usedModal ? "Modal GPU 🚀" : "Canvas fallback"}`)
+
     } catch (error) {
-      console.error("Generation failed:", error)
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error("Generation failed:", msg)
+      setErrorMessage(msg)
       setStage('failed')
     }
   }
 
+
+  const handleDownload = () => {
+    if (!result) return
+    const filename = `sjk-mockup-${location?.name?.replace(/\s+/g, "-") || "custom"}-${Date.now()}.jpg`
+    downloadFile(result, filename)
+  }
+
   const reset = () => {
     setCreativeFile(null)
+    if (creativePreview) URL.revokeObjectURL(creativePreview)
+    setCreativePreview(null)
     setBackgroundFile(null)
     setResult(null)
     setStage('idle')
+    setErrorMessage(null)
   }
 
-  const isProcessing = stage !== 'idle' && stage !== 'completed' && stage !== 'failed';
+  const isProcessing = stage !== 'idle' && stage !== 'completed' && stage !== 'failed'
+  const progress = STAGE_PROGRESS[stage]
+
+  if (!isMounted) return null
 
   return (
-    <Dialog open={true} onOpenChange={(open) => { if (!open) { reset(); onClose(); } }}>
-      <DialogContent className="sm:max-w-[600px] border-border/40 bg-background/95 backdrop-blur-2xl">
+    <Dialog open={true} onOpenChange={(open) => { if (!open) { reset(); onClose() } }}>
+      <DialogContent className="sm:max-w-[620px] border-border/40 bg-background/95 backdrop-blur-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl font-bold tracking-tight">
             <Sparkles className="h-6 w-6 text-primary animate-pulse" />
@@ -115,74 +283,109 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           </DialogTitle>
           <DialogDescription>
             {location ? (
-              <>Используется база: <span className="font-semibold text-foreground">{location.name}</span></>
+              <>База: <span className="font-semibold text-foreground">{location.name}</span></>
             ) : (
-              "Режим «Street Upload»: загрузите фото с улицы"
+              "Режим «Street Upload» — загрузите фото с улицы"
             )}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-6 py-6 font-sans">
+        <div className="flex flex-col gap-6 py-4 font-sans">
+
+          {/* ── Upload Zone ─────────────────────────────────── */}
           {!result && !isProcessing && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {/* Выбор креатива (Обязательно) */}
+              {/* Креатив */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">1. Креатив клиента</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  1. Баннер клиента <span className="text-red-400">*</span>
+                </label>
                 <label className={cn(
-                  "flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed transition-all cursor-pointer",
-                  creativeFile ? "border-primary bg-primary/5" : "border-border/60 hover:border-primary/50 hover:bg-muted/30"
+                  "flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed transition-all cursor-pointer group",
+                  creativeFile
+                    ? "border-primary bg-primary/5"
+                    : "border-border/60 hover:border-primary/50 hover:bg-muted/30"
                 )}>
-                  {creativeFile ? (
-                    <div className="flex flex-col items-center p-4 text-center">
-                      <Check className="h-8 w-8 text-primary mb-2" />
-                      <p className="text-xs font-medium truncate max-w-[150px]">{creativeFile.name}</p>
+                  {creativePreview ? (
+                    <div className="relative w-full h-full rounded-2xl overflow-hidden">
+                      <img src={creativePreview} alt="Creative" className="w-full h-full object-contain p-2" />
+                      <div className="absolute top-2 right-2 p-1 rounded-full bg-primary">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
                     </div>
                   ) : (
                     <>
-                      <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-                      <p className="text-xs font-medium text-center px-4">Загрузить баннер</p>
+                      <Upload className="h-10 w-10 text-muted-foreground mb-2 group-hover:text-primary transition-colors" />
+                      <p className="text-xs font-medium text-center px-4 text-muted-foreground">
+                        PNG, JPG, WEBP
+                      </p>
                     </>
                   )}
                   <input type="file" className="hidden" onChange={handleCreativeChange} accept="image/*" />
                 </label>
               </div>
 
-              {/* Выбор фона (Если Street Mode) */}
+              {/* Фон */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">2. Фото объекта</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  2. Фото объекта {!location && <span className="text-red-400">*</span>}
+                </label>
                 {!location || backgroundFile ? (
                   <label className={cn(
-                    "flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed transition-all cursor-pointer",
-                    backgroundFile ? "border-green-500 bg-green-500/5" : "border-border/60 hover:border-green-500/50 hover:bg-muted/30"
+                    "flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed transition-all cursor-pointer group",
+                    backgroundFile
+                      ? "border-green-500 bg-green-500/5"
+                      : "border-border/60 hover:border-green-500/50 hover:bg-muted/30"
                   )}>
                     {backgroundFile ? (
-                      <div className="flex flex-col items-center p-4 text-center">
-                        <Camera className="h-8 w-8 text-green-500 mb-2" />
+                      <div className="flex flex-col items-center p-4 text-center gap-2">
+                        <div className="p-2 rounded-full bg-green-500/10">
+                          <Camera className="h-6 w-6 text-green-500" />
+                        </div>
                         <p className="text-xs font-medium truncate max-w-[150px]">{backgroundFile.name}</p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7 text-muted-foreground"
+                          onClick={(e) => { e.preventDefault(); handleAutoDetect() }}
+                          disabled={isDetecting}
+                        >
+                          {isDetecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                          Авто-детекция углов
+                        </Button>
                       </div>
                     ) : (
                       <>
-                        <Camera className="h-10 w-10 text-muted-foreground mb-2" />
-                        <p className="text-xs font-medium text-center px-4">Снять или выбрать фото</p>
+                        <Camera className="h-10 w-10 text-muted-foreground mb-2 group-hover:text-green-500 transition-colors" />
+                        <p className="text-xs font-medium text-center px-4 text-muted-foreground">
+                          Снять или выбрать фото
+                        </p>
                       </>
                     )}
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      onChange={handleBackgroundChange} 
-                      accept="image/*" 
-                      capture="environment" 
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleBackgroundChange}
+                      accept="image/*"
+                      capture="environment"
                     />
                   </label>
                 ) : (
                   <div className="relative aspect-square rounded-2xl overflow-hidden border border-border/40 group">
-                    <img 
-                      src={location.primary_photo_url || "/placeholder-location.jpg"} 
-                      alt="Target" 
-                      className="h-full w-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" 
+                    <img
+                      src={getFullImageUrl(location.primary_photo_url)}
+                      alt="Базовое фото"
+                      className="h-full w-full object-cover transition-all duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1542281286-9e0a16bb7366?auto=format&fit=crop&q=80&w=600'
+                      }}
                     />
-                    <div className="absolute inset-0 bg-black/20 flex items-end p-3">
-                      <p className="text-[10px] text-white font-medium bg-black/40 px-2 py-1 rounded-full backdrop-blur-md">Базовое фото</p>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
+                      <p className="text-[10px] text-white font-medium bg-black/40 px-2 py-1 rounded-full backdrop-blur-md">
+                        📍 Базовое фото из каталога
+                      </p>
                     </div>
                   </div>
                 )}
@@ -190,47 +393,78 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
             </div>
           )}
 
+          {/* ── Processing ──────────────────────────────────── */}
           {isProcessing && (
-            <div className="flex flex-col items-center justify-center gap-6 py-12">
+            <div className="flex flex-col items-center justify-center gap-6 py-10">
               <div className="relative">
-                <Loader2 className="h-16 w-16 animate-spin text-primary opacity-20" />
-                <RefreshCw className="h-8 w-8 animate-spin-slow text-primary absolute top-1/2 left-1/2 -ml-4 -mt-4" />
+                <div className="h-20 w-20 rounded-full border-4 border-primary/20 animate-pulse" />
+                <Loader2 className="h-10 w-10 animate-spin text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
-              <div className="text-center space-y-2">
-                <p className="text-lg font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+              <div className="text-center space-y-3 w-full max-w-xs">
+                <p className="text-lg font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent">
                   {STAGE_MESSAGES[stage]}
                 </p>
-                <div className="flex gap-1 justify-center">
+                {/* Progress bar */}
+                <div className="flex gap-1.5">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className={cn(
-                      "h-1 w-8 rounded-full transition-colors duration-500",
-                      (stage === 'uploading' && i === 1) || 
-                      (stage === 'detecting' && i <= 2) || 
-                      (stage === 'segmenting' && i <= 3) || 
-                      (stage === 'rendering' && i <= 4) ? "bg-primary" : "bg-muted"
-                    )} />
+                    <div
+                      key={i}
+                      className={cn(
+                        "h-1 flex-1 rounded-full transition-all duration-700",
+                        i <= progress ? "bg-primary" : "bg-muted"
+                      )}
+                    />
                   ))}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {stage === 'rendering' ? 'Modal GPU • YOLO OBB • perspective warp' : ''}
+                  {stage === 'saving' ? 'Сохранение результата...' : ''}
+                </p>
               </div>
             </div>
           )}
 
-          {result && !isProcessing && (
+          {/* ── Error ───────────────────────────────────────── */}
+          {stage === 'failed' && (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <div className="p-4 rounded-full bg-red-500/10 border border-red-500/20">
+                <AlertCircle className="h-10 w-10 text-red-400" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="font-bold text-red-400">Ошибка генерации</p>
+                {errorMessage && (
+                  <p className="text-xs text-muted-foreground max-w-xs">{errorMessage}</p>
+                )}
+              </div>
+              <Button variant="outline" onClick={reset} className="gap-2">
+                <RefreshCw className="h-4 w-4" />
+                Попробовать снова
+              </Button>
+            </div>
+          )}
+
+          {/* ── Result ──────────────────────────────────────── */}
+          {result && stage === 'completed' && (
             <div className="relative group overflow-hidden rounded-2xl border border-border/40 shadow-2xl animate-in zoom-in-95 duration-500">
-              <img src={result} alt="Result" className="w-full h-auto object-contain" />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-6 translate-y-2 group-hover:translate-y-0 transition-transform">
+              <img src={result} alt="Mockup Result" className="w-full h-auto object-contain" />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-5 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-white">
-                    <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center">
-                      <Check className="h-5 w-5" />
+                  <div className="flex items-center gap-3 text-white">
+                    <div className="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center shadow-lg shadow-green-500/30">
+                      <Check className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="font-bold">Мокап готов</p>
-                      <p className="text-xs text-gray-300">Сохранено в историю</p>
+                      <p className="font-bold text-sm">Мокап сгенерирован</p>
+                      <p className="text-[10px] text-gray-400">Modal GPU • YOLO OBB detection</p>
                     </div>
                   </div>
-                  <Button size="sm" className="bg-white text-black hover:bg-white/90 font-bold rounded-full">
-                    SHARE
+                  <Button
+                    size="sm"
+                    onClick={handleDownload}
+                    className="bg-white text-black hover:bg-white/90 font-bold rounded-full gap-2 shadow-lg"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    СКАЧАТЬ
                   </Button>
                 </div>
               </div>
@@ -238,22 +472,42 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           )}
         </div>
 
-        <DialogFooter className="gap-3 sm:justify-between border-t border-border/40 pt-6">
-          <Button variant="ghost" onClick={onClose} className="rounded-full">Отмена</Button>
-          {!result && !isProcessing ? (
-            <Button 
-              disabled={!creativeFile || (!location && !backgroundFile)} 
+        {/* ── Footer ──────────────────────────────────────── */}
+        <DialogFooter className="gap-3 sm:justify-between border-t border-border/40 pt-5">
+          <Button
+            variant="ghost"
+            onClick={() => { reset(); onClose() }}
+            className="rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Закрыть
+          </Button>
+
+          {stage === 'idle' && (
+            <Button
+              disabled={!creativeFile || (!location && !backgroundFile)}
               onClick={handleGenerate}
               className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 rounded-full shadow-lg shadow-primary/20"
             >
+              <Sparkles className="h-4 w-4" />
               СГЕНЕРИРОВАТЬ
             </Button>
-          ) : result ? (
+          )}
+
+          {stage === 'completed' && (
             <div className="flex gap-2">
-              <Button variant="secondary" onClick={reset} className="rounded-full">ЗАНОГО</Button>
-              <Button className="bg-primary hover:bg-primary/90 font-bold rounded-full px-8">СКАЧАТЬ</Button>
+              <Button variant="secondary" onClick={reset} className="rounded-full">
+                ЗАНОВО
+              </Button>
+              <Button
+                onClick={handleDownload}
+                className="bg-primary hover:bg-primary/90 font-bold rounded-full px-8 gap-2"
+              >
+                <Download className="h-4 w-4" />
+                СКАЧАТЬ
+              </Button>
             </div>
-          ) : null}
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

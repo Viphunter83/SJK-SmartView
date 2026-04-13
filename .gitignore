@@ -5,6 +5,7 @@ venv/
 env/
 __pycache__/
 *.py[cod]
+*.pyo
 
 # Next.js
 .next/
@@ -17,16 +18,37 @@ build/
 *.swp
 *.swo
 
-# Environment
+# Environment — НИКОГДА не коммитить секреты!
 .env
 .env.local
 .env.*.local
 
+# Firebase Service Account — КРИТИЧНО
+service_account.json
+*firebase-adminsdk*.json
+*.serviceAccount.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+sql_app.db
+
 # Docker
 .docker/
-*.log
 docker-compose.override.yml
+
+# Logs
+*.log
+backend_logs*.txt
 
 # OS files
 .DS_Store
 Thumbs.db
+__MACOSX/
+
+# Uploaded files (локальный fallback)
+backend/uploads/
+
+# Build artifacts
+dist/

@@ -1,18 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { 
-  Monitor, 
-  Map, 
-  History, 
-  Settings, 
-  Plus, 
-  Box,
-  Image as ImageIcon,
-  LogOut
-} from "lucide-react"
-import { useRouter } from "next/navigation"
-
+import { Monitor, Map, History, Plus, Box, LogOut, Loader2 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/lib/auth-context"
 
 interface AppSidebarProps {
   currentTab: 'catalog' | 'history' | 'map';
@@ -30,11 +20,16 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSidebarProps) {
-  const router = useRouter()
-  
-  const handleLogout = () => {
-    // В MVP просто редирект на логин
-    router.push('/login')
+  const { logout } = useAuth()
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false)
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await logout() // Реальный Firebase signOut + редирект
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   return (
@@ -47,11 +42,12 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
           <span className="text-xl font-bold tracking-tight text-foreground">SJK SmartView</span>
         </div>
       </SidebarHeader>
+
       <SidebarContent className="px-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              tooltip="Каталог экранов" 
+            <SidebarMenuButton
+              tooltip="Каталог экранов"
               isActive={currentTab === 'catalog'}
               onClick={() => onTabChange('catalog')}
             >
@@ -59,8 +55,9 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
               <span>Каталог экранов</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               tooltip="Загрузить с улицы"
               onClick={onOpenCreator}
             >
@@ -68,9 +65,10 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
               <span>Загрузить с улицы</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
           <SidebarMenuItem>
-            <SidebarMenuButton 
-              tooltip="История"
+            <SidebarMenuButton
+              tooltip="История мокапов"
               isActive={currentTab === 'history'}
               onClick={() => onTabChange('history')}
             >
@@ -78,8 +76,9 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
               <span>История мокапов</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
           <SidebarMenuItem>
-            <SidebarMenuButton 
+            <SidebarMenuButton
               tooltip="Карта объектов"
               isActive={currentTab === 'map'}
               onClick={() => onTabChange('map')}
@@ -90,12 +89,22 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarContent>
+
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Выйти" onClick={handleLogout} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
-              <LogOut className="h-5 w-5" />
-              <span>Выйти</span>
+            <SidebarMenuButton
+              tooltip="Выйти"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+            >
+              {isLoggingOut ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <LogOut className="h-5 w-5" />
+              )}
+              <span>{isLoggingOut ? "Выход..." : "Выйти"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

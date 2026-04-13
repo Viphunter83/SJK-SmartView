@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Публичное чтение всех файлов (для отображения мокапов)
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // Папка creatives/ — пишут только авторизованные пользователи
+    match /creatives/{filename} {
+      allow write: if request.auth != null
+        && request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Папка results/ — пишут только авторизованные пользователи
+    match /results/{filename} {
+      allow write: if request.auth != null
+        && request.resource.size < 50 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

@@ -1,5 +1,24 @@
 # Changelog - SJK SmartView
 
+## [0.2.0] - 2026-04-13
+### Added
+- **Firebase Authentication:** Global `AuthContext`, `ProtectedRoute` wrapper, and full Login flow integration via Client SDK.
+- **Firebase Storage:** Integrated `StorageService` using Firebase Admin SDK and `service_account.json` for cloud-based image management.
+- **Vietnam Localization:** Re-seeded database with 6 real SJK Group locations in HCMC and Hanoi with valid images from `shojiki.vn`.
+- **Global Providers:** Centralized `AuthProvider`, `SidebarProvider`, and `TooltipProvider` in root layout.
+- **Toaster:** Added `shadcn/ui` Toaster for real-time authentication feedback.
+
+### Fixed
+- **Dead UI Bug:** Removed redundant `SidebarProvider` which was blocking all interactive events.
+- **Hydration Mismatch:** Resolved React hydration errors in `MockupCreator` using mount checks.
+- **Catalog Image Recovery:** Fixed image rendering in `LocationCatalog` to handle both local and absolute URLs + added error fallbacks.
+- **Docker Sync:** Corrected backend seed execution path within containers.
+
+### Changed
+- Refactored `LoginPage` from mock logic to real Firebase Auth.
+- Updated `LocationCatalog` to display real-world Vietnam data instead of Moscow placeholders.
+- Header user display now dynamically shows the email of the logged-in manager.
+
 ## [0.1.0] - 2026-04-13
 ### Added
 - **Project Structure:** Initialized monorepo with `frontend/` (Next.js 15) and `backend/` (FastAPI).

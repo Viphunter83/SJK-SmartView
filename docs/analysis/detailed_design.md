@@ -12,11 +12,11 @@
 Для MVP нам потребуется 3 основных таблицы:
 
 ```sql
--- Пользователи (Сотрудники Shojiki)
+-- Пользователи (Клиентская часть через Firebase Auth)
+-- В БД хранятся расширенные данные профиля, если необходимо
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY, -- UUID из Firebase UID
     email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
     full_name TEXT,
     role TEXT DEFAULT 'manager',
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -50,8 +50,9 @@ CREATE TABLE mockups (
 
 ## 2. API Спецификация (FastAPI)
 
-### Auth
-- `POST /api/v1/auth/login` -> `{ access_token, user }`
+### Auth (Firebase)
+- **Client**: `signInWithEmailAndPassword` через Firebase SDK.
+- **Backend Access**: Токен проверяется через Firebase Admin SDK.
 
 ### Locations
 - `GET /api/v1/locations` -> `List[Location]` (с фильтром по GPS)
@@ -63,6 +64,7 @@ CREATE TABLE mockups (
     - `creative`: File (Image)
     - `background`: File (Optional - для Street Photo)
     - `location_id`: UUID (Optional - для выбора из каталога)
+  - **Storage**: Все файлы (баннеры и результаты) загружаются в Firebase Storage через `StorageService` с использованием ключа `service_account.json`.
   - **Response**: `{ mockup_id, result_url, confidence_score }`
 
 ### Типы экранов (на базе каталога Shojiki.vn)
