@@ -406,15 +406,24 @@ async def generate_mockup(
                 loc = db.query(models.Location).filter(models.Location.id == loc_uuid).first()
                 if loc:
                     db_location_id = loc.id
-                    if loc.screen_geometry:
-                        raw = loc.screen_geometry
-                        if isinstance(raw, list) and raw:
+                    raw = loc.screen_geometry
+                    print(f"DEBUG: Location found: {loc.name}, Raw geometry type: {type(raw)}")
+                    
+                    if raw:
+                        # Если это строка (иногда бывает при чтении из некоторых драйверов)
+                        if isinstance(raw, str):
+                            import json
+                            raw = json.loads(raw)
+                            
+                        if isinstance(raw, list) and len(raw) > 0:
                             if isinstance(raw[0], dict):
-                                corners = [[p["x"], p["y"]] for p in raw]
-                            elif isinstance(raw[0], list):
-                                corners = raw
-            except ValueError:
-                pass
+                                corners = [[float(p["x"]), float(p["y"])] for p in raw]
+                            elif isinstance(raw[0], (list, tuple)):
+                                corners = [list(p) for p in raw]
+                    
+                    print(f"DEBUG: Parsed corners from DB: {corners}")
+            except Exception as e:
+                print(f"ERROR: Failed to parse location geometry: {e}")
         
         # Если кастомная локация (или углов в БД нет), но пользователь выбрал точки вручную
         if not corners and corners_json:
