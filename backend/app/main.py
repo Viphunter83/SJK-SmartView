@@ -129,6 +129,16 @@ async def api_health_check():
         "corner_detection": "modal_yolo_obb" if modal_detect_fn else "opencv",
     }
 
+@app.post("/api/v1/admin/reseed", tags=["Admin"])
+async def admin_reseed(db: Session = Depends(get_db)):
+    """Force re-seed database with updated screen geometry coordinates."""
+    try:
+        seed_vietnam()
+        count = db.query(models.Location).count()
+        return {"status": "success", "message": f"Re-seeded {count} locations with corrected geometry"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # ─────────────────────────────────────────────────────────────
 # Locations

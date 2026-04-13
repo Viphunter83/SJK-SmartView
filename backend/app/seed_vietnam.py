@@ -41,12 +41,12 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/template/uploads/2021/07/quang-cao-led-ngoai-troi-nga-tu-ly-chinh-thang-nam-ky-khoi-nghia-7.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Горизонтальный широкоформатный экран
+            # Вертикальный экран в верхне-правой части снимка (1500x1125)
             "screen_geometry": [
-                {"x": 120, "y": 140},
-                {"x": 680, "y": 130},
-                {"x": 690, "y": 420},
-                {"x": 110, "y": 430},
+                {"x": 296, "y":  32},
+                {"x": 459, "y":  29},
+                {"x": 461, "y": 248},
+                {"x": 293, "y": 251},
             ],
         },
         {
@@ -58,12 +58,12 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2024/11/man-hinh-led-20-nguyen-hue-2.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
-            # Экран на фасаде здания, слегка наклонён
+            # Оранжевый SJK в верхне-центральной части (1330x996)
             "screen_geometry": [
-                {"x": 200, "y": 80},
-                {"x": 620, "y": 90},
-                {"x": 630, "y": 390},
-                {"x": 190, "y": 400},
+                {"x": 168, "y":  18},
+                {"x": 469, "y":  15},
+                {"x": 472, "y": 238},
+                {"x": 165, "y": 241},
             ],
         },
         {
@@ -75,12 +75,12 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2024/06/pepsi-chay-quang-cao-tren-man-hinh-led-kfc-quan-1.jpg",
             "aspect_ratio": 2.39,
             "is_active": True,
-            # Широкий панорамный экран
+            # Широкий баннер Pepsi над KFC (960x640)
             "screen_geometry": [
-                {"x": 50,  "y": 160},
-                {"x": 750, "y": 145},
-                {"x": 755, "y": 440},
-                {"x": 45,  "y": 455},
+                {"x": 162, "y":  38},
+                {"x": 725, "y":  28},
+                {"x": 729, "y": 314},
+                {"x": 158, "y": 323},
             ],
         },
         # ─── HANOI ──────────────────────────────────────────────────
@@ -93,11 +93,12 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2024/04/led-ham-ca-map-ban-dem-6.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
+            # Фото не загружается (1382 bytes) — используем центральные координаты
             "screen_geometry": [
-                {"x": 150, "y": 100},
-                {"x": 660, "y": 110},
-                {"x": 650, "y": 410},
-                {"x": 160, "y": 400},
+                {"x": 200, "y": 100},
+                {"x": 600, "y":  95},
+                {"x": 605, "y": 350},
+                {"x": 195, "y": 355},
             ],
         },
         {
@@ -109,11 +110,12 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2021/08/led-vtv-43-nguyen-chi-thanh-ha-noi-2.jpg",
             "aspect_ratio": 1.77,
             "is_active": True,
+            # Горизонтальный экран VietinBank, центр-лево (1432x1053)
             "screen_geometry": [
-                {"x": 180, "y": 120},
-                {"x": 640, "y": 115},
-                {"x": 645, "y": 400},
-                {"x": 175, "y": 405},
+                {"x": 148, "y": 145},
+                {"x": 422, "y": 142},
+                {"x": 425, "y": 262},
+                {"x": 145, "y": 265},
             ],
         },
         {
@@ -125,11 +127,12 @@ def seed_vietnam():
             "primary_photo_url": "https://shojiki.vn/wp-content/uploads/2023/01/led-ba-trieu-ha-noi-1.jpeg",
             "aspect_ratio": 1.77,
             "is_active": True,
+            # Экран Nova на крыше, верх-слева (1907x1065)
             "screen_geometry": [
-                {"x": 100, "y": 130},
-                {"x": 700, "y": 125},
-                {"x": 705, "y": 430},
-                {"x": 95,  "y": 435},
+                {"x": 166, "y":  25},
+                {"x": 329, "y":  23},
+                {"x": 331, "y": 155},
+                {"x": 164, "y": 158},
             ],
         },
     ]
