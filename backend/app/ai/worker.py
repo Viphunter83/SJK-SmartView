@@ -81,6 +81,7 @@ def process_mockup(
         # Масштабируем пропорционально до реального разрешения фото.
         scale_x = w / 800.0
         scale_y = h / 600.0
+        print(f"DEBUG: Scaling corners from 800x600 to {w}x{h} (Scale: {scale_x:.2f}, {scale_y:.2f})")
         scaled_corners = []
         for p in corners:
             scaled_corners.append([
@@ -88,6 +89,7 @@ def process_mockup(
                 p[1] * scale_y,
             ])
         corners = scaled_corners
+        print(f"DEBUG: Input corners: {corners}")
 
     # Нормализуем структуру углов
     corners_np = np.array(corners, dtype="float32")
@@ -301,26 +303,29 @@ def _detect_corners_yolo(img, w, h) -> list:
 
 
 def _sort_corners(pts) -> "np.ndarray":
-    """Сортирует 4 точки: TL→ TR→ BR→ BL по принципу centroid."""
+    """Сортирует 4 точки: TL→ TR→ BR→ BL по методу суммы/разности."""
     import numpy as np
-
-    centroid = pts.mean(axis=0)
-    angles = []
-    for p in pts:
-        dx, dy = p[0] - centroid[0], p[1] - centroid[1]
-        import math
-        angles.append(math.atan2(dy, dx))
-
-    order = sorted(range(4), key=lambda i: angles[i])
-    # Порядок atan2: TL(-π,-π/2), TR(-π/2,0), BR(0,π/2), BL(π/2,π)
-    # Результат мы хотим TL→TR→BR→BL
-    sorted_pts = pts[order]
-
-    # Нормализуем: TL = наименьшая сумма x+y
-    sums = sorted_pts.sum(axis=1)
-    tl_idx = sums.argmin()
-    result = np.roll(sorted_pts, -tl_idx, axis=0)
-    return result.astype("float32")
+    
+    rect = np.zeros((4, 2), dtype="float32")
+    
+    # TL: минимальная сумма x+y
+    # BR: максимальная сумма x+y
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    
+    # TR: минимальная разность x-y (или y-x min)
+    # Порядок OpenCV: TL, TR, BR, BL
+    # diff = x - y
+    # TL: x+y min
+    # BR: x+y max
+    # TR: x-y max (x большой, y маленький)
+    # BL: x-y min (x маленький, y большой)
+    diff = np.diff(pts, axis=1) # y - x
+    rect[1] = pts[np.argmin(diff)] # y-x min => x-y max => TR
+    rect[3] = pts[np.argmax(diff)] # y-x max => x-y min => BL
+    
+    return rect
 
 
 def _make_vignette(corners, w, h, strength=0.15) -> "np.ndarray":

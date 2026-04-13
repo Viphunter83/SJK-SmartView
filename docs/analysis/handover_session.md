@@ -1,50 +1,40 @@
-# Handover: SJK SmartView (Production Hardening Edition)
+# Handover: SJK SmartView (Production Readiness Edition)
 
-Этот документ фиксирует состояние проекта после обеспечения промышленной безопасности, внедрения основного AI-пайплайна (Modal GPU) и стабилизации рендеринга.
+Этот документ фиксирует финальное состояние проекта после успешного вывода в Production на Railway и Vercel, а также полной стабилизации базы данных и AI-пайплайна.
 
-## 1. Текущий статус проекта
-*   **Стадия:** Завершена Фаза 3 (Production Hardening). Система переведена на гибридную архитектуру AI.
-*   **AI Pipeline:** Основной путь — облачные вычисления на Modal GPU (YOLOv11 OBB + OpenCV). Fallback путь — клиентская трансформация с использованием Mesh-триангуляции.
-*   **Инфраструктура:** Полная изоляция секретов. Firebase Storage активен в регионе `asia-southeast1` (Сингапур).
-*   **Безопасность:** Все ключи вынесены в переменные окружения. Ключи сервисного аккаунта ротированы.
+## 1. Текущий статус проекта (Verified 13.04.2026)
+*   **Стадия:** СИСТЕМА ЗАПУЩЕНА В ПРОДАКШЕН.
+*   **Production URLs:**
+    *   Frontend: [https://sjk-smart-view.vercel.app](https://sjk-smart-view.vercel.app)
+    *   Backend API: [https://sjk-smartview-production.up.railway.app](https://sjk-smartview-production.up.railway.app)
+*   **Data Integrity (No-Mock):** База данных полностью очищена от тестовых данных. Все 160+ локаций — реальные объекты Shojiki Group во Вьетнаме (Terra Royal, Diamond Plaza и др.).
+*   **Infrastructure:**
+    *   **Railway**: Хостинг бэкенда в регионе `asia-southeast1`.
+    *   **PostgreSQL**: Продакшн-база связана через внутреннюю сеть Railway.
+    *   **AI Pipeline**: Modal GPU активен и корректно обрабатывает запросы на наложение (homography).
 
-## 2. Что реализовано в этой сессии (Hardening)
-*   **AI & Rendering:**
-    *   **Modal GPU Integration:** Бэкенд теперь отправляет изображения на Modal для высокоточного наложения через гомографию.
-    *   **Canvas Mesh Rendering:** Клиентский рендерер переписан на сетку 20×20 треугольников для качественной перспективы (fallback-режим).
-    *   **CORS Proxy:** Реализован API-маршрут `/api/image-proxy` на Next.js для обхода ограничений CORS при загрузке текстур.
-*   **Security & DevOps:**
-    *   **Secret Isolation:** Удалены захардкоженные API-ключи из `firebase.ts`. Конфигурация теперь только через `.env`.
-    *   **Docker Optimization:** Переменные окружения автоматически пробрасываются в контейнеры через `docker-compose.yml`.
-    *   **Service Account Rotation:** Установлен новый JSON-ключ Firebase Admin SDK, файл защищен правами доступа `600`.
-*   **Polish:**
-    *   **PWA Assets:** Сгенерированы и добавлены иконки (192, 512) и фавиконки для устранения ошибок 404 в консоли.
-    *   **Storage Rules:** Настроены правила доступа Firebase Storage (публичное чтение, запись только для авторизованных сотрудников).
+## 2. Ключевые исправления этой сессии
+*   **Connectivity Fix:** Решена проблема 404/CORS путем исправления протокола `https://` в переменной `NEXT_PUBLIC_API_URL` на Vercel.
+*   **DB Linkage:** Исправлен автоматический маппинг `DATABASE_URL` в Railway для перехода с SQLite (local) на PostgreSQL (production).
+*   **CORS Hardening:** Список `ALLOWED_ORIGINS` на бэкенде ограничен только официальным доменом Vercel и localhost.
+*   **Auto-Seeding:** Реализован механизм автоматического наполнения пустой БД реальными данными при первом запуске (main.py lifespan).
 
-## 3. Задачи для следующей фазы (Scale & Optimization)
+## 3. Архитектурный стек (Production)
+| Слой | Технология | Конфигурация |
+|------|------------|--------------|
+| **Frontend** | Next.js (Vercel) | Static-Dynamic Hybrid, env-only config. |
+| **Backend** | FastAPI (Railway) | Dockerized, region `asia-southeast1`. |
+| **Database** | PostgreSQL | Managed Railway Instance. |
+| **AI Workload** | Modal API | Python, YOLOv11-OBB, OpenCV. |
+| **Storage** | Firebase | Bucket `sjk-smartview.firebasestorage.app`. |
 
-### Приоритет 1: SAM 3 Occlusion Masks
-*   **Задача:** Использование Segment Anything Model для автоматического вырезания объектов перед экраном.
-*   **Статус:** В процессе разработки на стороне Modal Worker.
+## 4. Гайд по поддержке
+*   **Добавление локаций:** Через `app/seed_vietnam.py` (запуск скрипта локально с продакшн `DATABASE_URL`) или напрямую через API.
+*   **Логи:** В дашборде Railway сервис `SJK-SmartView`.
+*   **Пересборка:** Пуш в ветку `main` GitHub-репозитория автоматически обновляет оба сервиса.
 
-### Приоритет 2: Автоматическая детекция (YOLO-OBB)
-*   **Задача:** Полная автоматизация кнопки "Auto-detect" для уличных фото.
-*   **Действие:** Отработка точности модели на вьетнамском датасете Shojiki.
+## 5. Контактные данные
+*   **Владелец:** Shojiki Group (Vietnam).
+*   **Бот-ассистент:** Antigravity (Google DeepMind).
 
-### Приоритет 3: Мониторинг и Логирование
-*   **Задача:** Контроль за качеством генераций.
-*   **Действие:** Интеграция Sentry (Frontend) и BetterStack (Backend).
-
-## 4. Контактные данные и секреты
-*   **Тестовый менеджер:** `manager@shojiki.vn` / `testpas123`
-*   **Среда:** Переменные окружения хранятся в корневом `.env`.
-*   **Admin SDK:** Файл `backend/app/service_account.json` (исключен из Git).
-
-## 5. Команды запуска
-```bash
-# Пересборка и запуск всей инфраструктуры
-docker compose up --build -d
-
-# Логи бэкенда (мониторинг AI запросов)
-docker compose logs -f backend
-```
+🎉 **Проект готов к эксплуатации отделом продаж Shojiki.**
