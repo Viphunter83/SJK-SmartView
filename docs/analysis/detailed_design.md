@@ -48,64 +48,50 @@ CREATE TABLE mockups (
 
 ---
 
-## 2. API Спецификация (FastAPI)
+## 2. API Спецификация
 
 ### Auth (Firebase)
 - **Client**: `signInWithEmailAndPassword` через Firebase SDK.
-- **Backend Access**: Токен проверяется через Firebase Admin SDK.
+- **Backend Access**: Токен проверяется через Firebase Admin SDK в middleware.
 
-### Locations
-- `GET /api/v1/locations` -> `List[Location]` (с фильтром по GPS)
-- `GET /api/v1/locations/{id}`
+### Proxy & Utils
+- **Next.js Proxy**: `GET /api/image-proxy?url=...`
+  - Решает проблему CORS для клиентского рендерера (текстуры).
+  - Стримит изображение с целевого URL (напр. Firebase Storage) с корректными заголовками.
 
 ### Processing (Core)
 - `POST /api/v1/generate`
   - **Body (Multipart)**:
-    - `creative`: File (Image)
-    - `background`: File (Optional - для Street Photo)
-    - `location_id`: UUID (Optional - для выбора из каталога)
-  - **Storage**: Все файлы (баннеры и результаты) загружаются в Firebase Storage через `StorageService` с использованием ключа `service_account.json`.
-  - **Response**: `{ mockup_id, result_url, confidence_score }`
-
-### Типы экранов (на базе каталога Shojiki.vn)
-В систему будут заложены пресеты для:
-*   **Outdoor LED** (например, Terra Royal, Quận 3).
-*   **3D LED** (Nguyen Hue - требует учета искажений для 3D-эффекта).
-*   **Стандартные Билборды** (14x8м).
-*   **Indoor LCD** (торговые центры Vincom/Lotte).
+    - `creative`: Файл баннера.
+    - `background`: Файл фото (для "Street Photo").
+    - `location_id`: UUID (для выбора из каталога).
+  - **Logic**: Если `background` отсутствует, берется `primary_photo_url` из БД локации.
+  - **AI Engine**: Вызов `modal_gpu` воркера.
 
 ---
 
-## 3. AI Пайплайн обработки (The Magic)
+## 3. AI Пайплайн и Рендеринг (Implementation Details)
 
-Пайплайн на бэкенде (Python) будет состоять из следующих шагов:
+### Backend (Production Path)
+1.  **Detection (YOLOv11-OBB)**: Модель обучена на поиск ориентированных рамок (4 точки).
+2.  **Homography Transformation**: Вычисление матрицы перехода от прямоугольного баннера к найденному четырехугольнику.
+3.  **Alpha Blending**: Наложение баннера на исходное фото с учетом прозрачности и освещенности.
 
-1.  **Normalization**: Приведение загруженного креатива к нужному aspect ratio экрана ( cropping или padding).
-2.  **Detection (YOLOv12-OBB)**: Поиск экрана на фоне. Если это "Street Photo", модель ищет прямоугольник с наибольшей уверенностью.
-3.  **Segmentation (SAM 3)**:
-    - Подается "промпт" в виде найденного прямоугольника экрана.
-    - SAM 3 вырезает всё, что находится *перед* экраном (листья, столбы).
-4.  **Homography**: Трансформация креатива под углы, найденные на шаге 2.
-5.  **Blending**:
-    - Слой 0: Исходное фото.
-    - Слой 1: Трансформированный креатив.
-    - Слой 2: Инвертированная маска перекрытий из шага 3.
-6.  **Relighting (LightGlue / ControlNet)**: Подстройка яркости и цветового баланса баннера под освещение на фото.
+### Frontend (Fallback Path)
+1.  **Mesh Triangulation**: Разделение области экрана на сетку 20×20 треугольников.
+2.  **Texture Mapping**: Использование Canvas API для отрисовки каждого треугольника с учетом искажений. Это обеспечивает высокую производительность и плавность на мобильных устройствах.
 
 ---
 
-## 4. План реализации PWA
+## 4. PWA и Мобильная оптимизация (Реализовано)
 
-*   **Camera API**: Использование `input type="file" capture="environment"` для прямого доступа к камере на iOS/Android.
-*   **Offline Mode**: Кэширование списка `locations` и их миниатюр через Service Worker.
-*   **Progressive Loading**: Отображение "скелетонов" и индикаторов прогресса AI-генерации (Lottie-анимации рабочего процесса).
+*   **Manifest**: `public/manifest.json` настроен для работы в режимеStandalone.
+*   **Assets**: Сгенерированы иконки 192x192 и 512x512.
+*   **Camera API**: Поддерживается захват изображения с камеры через стандартную шторку ОС.
 
 ---
 
-## Дальнейшие шаги
-1.  **Создание миграций базы данных** (Supabase/PostgreSQL).
-2.  **Инициализация проекта Next.js 15** (Frontend).
-3.  **Инициализация FastAPI** (AI Backend).
-
-> [!IMPORTANT]
-> На этом этапе мы можем переходить к реализации первого модуля — **Каталога локаций**, если дизайн и спецификации утверждены.
+## 5. Безопасность и Инфраструктура
+*   **Isolation**: Все API-ключи хранятся в переменных окружения.
+*   **Access Control**: Firebase Storage защищен правилами (Security Rules), разрешающими запись только аутентифицированным менеджерам.
+*   **Deployment**: Система контейнеризирована через Docker Compose для легкого деплоя на любые облака.
