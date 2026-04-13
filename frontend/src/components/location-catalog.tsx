@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { API_ENDPOINTS } from "@/lib/config"
 import { getFullImageUrl } from "@/lib/utils/url"
+import { useLanguage } from "@/lib/i18n"
 
 interface Location {
   id: string;
@@ -37,6 +38,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [activeCategory, setActiveCategory] = React.useState<CategoryFilter>('all')
+  const { t } = useLanguage()
 
   const fetchLocations = React.useCallback(async () => {
     setLoading(true)
@@ -47,7 +49,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
       const data = await response.json()
       setLocations(data)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Неизвестная ошибка"
+      const msg = err instanceof Error ? err.message : t("err_network")
       setError(msg)
       console.error("Failed to fetch locations:", err)
     } finally {
@@ -81,7 +83,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
       {/* ── Header ───────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-          Экраны в сети
+          {t("screens_network")}
         </h2>
         <div className="flex items-center gap-3 flex-1 max-w-sm">
           <Button
@@ -96,7 +98,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Поиск..."
+              placeholder={t("search_placeholder")}
               className="pl-8 bg-zinc-900/50 border-white/5 focus-visible:ring-primary/50"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -116,7 +118,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
                 : 'bg-zinc-900/50 text-zinc-400 hover:text-white border border-white/5'
             }`}
           >
-            Все
+            {t("all")}
           </button>
           {categories.map((cat) => (
             <button
@@ -141,12 +143,12 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
             <AlertCircle className="h-8 w-8 text-red-400" />
           </div>
           <div className="text-center space-y-1">
-            <p className="font-bold text-red-400">Не удалось загрузить каталог</p>
+            <p className="font-bold text-red-400">{t("err_catalog_load")}</p>
             <p className="text-xs text-zinc-500">{error}</p>
           </div>
           <Button variant="outline" onClick={fetchLocations} className="gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10">
             <RefreshCw className="h-4 w-4" />
-            Повторить
+            {t("retry")}
           </Button>
         </div>
       )}
@@ -195,7 +197,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
                       ? 'bg-green-500 shadow-[0_0_8px_#22c55e]'
                       : 'bg-red-500'
                   }`} />
-                  {location.is_active !== false ? "Active" : "Offline"}
+                  {location.is_active !== false ? t("active") : t("offline")}
                 </Badge>
               </div>
 
@@ -213,7 +215,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
               <CardContent className="px-4 pb-4 pt-0 text-sm text-zinc-500">
                 <div className="flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 shrink-0" />
-                  <span className="line-clamp-1 font-medium italic">{location.address || "Адрес не указан"}</span>
+                  <span className="line-clamp-1 font-medium italic">{location.address || t("no_address")}</span>
                 </div>
               </CardContent>
 
@@ -223,7 +225,7 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
                   className="w-full gap-2 font-bold bg-white text-black hover:bg-primary hover:text-white transition-all duration-300 shadow-lg"
                 >
                   <ImageIcon className="h-4 w-4" />
-                  Создать мокап
+                  {t("create_mockup")}
                 </Button>
               </CardFooter>
             </Card>
@@ -235,10 +237,10 @@ export function LocationCatalog({ onSelect }: LocationCatalogProps) {
                 <div className="p-4 rounded-full bg-zinc-900/50 border border-white/5">
                   <SlidersHorizontal className="h-8 w-8 text-zinc-700" />
                 </div>
-                <p className="text-zinc-500 font-medium">Ничего не найдено</p>
-                <p className="text-zinc-600 text-sm">Попробуйте изменить запрос или выбрать другую категорию</p>
+                <p className="text-zinc-500 font-medium">{t("no_results")}</p>
+                <p className="text-zinc-600 text-sm">{t("try_different_search")}</p>
                 <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(""); setActiveCategory("all") }}>
-                  Сбросить фильтры
+                  {t("reset_filters")}
                 </Button>
               </div>
             </div>

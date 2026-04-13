@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/lib/auth-context"
+import { useLanguage } from "@/lib/i18n"
 
 interface AppSidebarProps {
   currentTab: 'catalog' | 'history' | 'map';
@@ -21,6 +22,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSidebarProps) {
   const { logout } = useAuth()
+  const { t } = useLanguage()
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
   const handleLogout = async () => {
@@ -47,44 +49,44 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Каталог экранов"
+              tooltip={t("screen_catalog")}
               isActive={currentTab === 'catalog'}
               onClick={() => onTabChange('catalog')}
             >
               <Monitor className="h-5 w-5" />
-              <span>Каталог экранов</span>
+              <span>{t("screen_catalog")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Загрузить с улицы"
+              tooltip={t("street_upload")}
               onClick={onOpenCreator}
             >
               <Plus className="h-5 w-5" />
-              <span>Загрузить с улицы</span>
+              <span>{t("street_upload")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="История мокапов"
+              tooltip={t("mockup_history")}
               isActive={currentTab === 'history'}
               onClick={() => onTabChange('history')}
             >
               <History className="h-5 w-5" />
-              <span>История мокапов</span>
+              <span>{t("mockup_history")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Карта объектов"
+              tooltip={t("location_map")}
               isActive={currentTab === 'map'}
               onClick={() => onTabChange('map')}
             >
               <Map className="h-5 w-5" />
-              <span>Карта объектов</span>
+              <span>{t("location_map")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -94,7 +96,7 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Выйти"
+              tooltip={t("logout")}
               onClick={handleLogout}
               disabled={isLoggingOut}
               className="text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-50"
@@ -104,7 +106,7 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
               ) : (
                 <LogOut className="h-5 w-5" />
               )}
-              <span>{isLoggingOut ? "Выход..." : "Выйти"}</span>
+              <span>{isLoggingOut ? t("logging_out") : t("logout")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

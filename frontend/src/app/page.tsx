@@ -7,9 +7,10 @@ import { LocationCatalog } from "@/components/location-catalog"
 import { MockupHistory } from "@/components/mockup-history"
 import { MockupCreator } from "@/components/mockup-creator"
 import { Button } from "@/components/ui/button"
-import { History, LayoutGrid, Map as MapIcon } from "lucide-react"
+import { LayoutGrid, Map as MapIcon, RotateCcw } from "lucide-react" // Using RotateCcw for history since History icon is also there but we can import History. Actually wait, the existing code has History imported.
 import dynamic from 'next/dynamic'
 import { useAuth } from "@/lib/auth-context"
+import { useLanguage } from "@/lib/i18n"
 
 // Leaflet работает только в браузере — динамический импорт без SSR
 const LocationMap = dynamic(() => import('@/components/location-map'), {
@@ -32,6 +33,7 @@ export default function Home() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const { user } = useAuth()
+  const { t, language, setLanguage } = useLanguage()
 
   const handleOpenCreator = (location: Location | null = null) => {
     setSelectedLocation(location);
@@ -63,7 +65,7 @@ export default function Home() {
                   onClick={() => setActiveTab('catalog')}
                   className="gap-2 transition-all duration-300"
                 >
-                  <LayoutGrid size={16} /> Каталог
+                  <LayoutGrid size={16} /> {t("screen_catalog")}
                 </Button>
                 <Button
                   variant={activeTab === 'history' ? 'secondary' : 'ghost'}
@@ -71,7 +73,7 @@ export default function Home() {
                   onClick={() => setActiveTab('history')}
                   className="gap-2 transition-all duration-300"
                 >
-                  <History size={16} /> История
+                  <RotateCcw size={16} /> {t("mockup_history")}
                 </Button>
                 <Button
                   variant={activeTab === 'map' ? 'secondary' : 'ghost'}
@@ -79,14 +81,22 @@ export default function Home() {
                   onClick={() => setActiveTab('map')}
                   className="gap-2 transition-all duration-300"
                 >
-                  <MapIcon size={16} /> Карта
+                  <MapIcon size={16} /> {t("location_map")}
                 </Button>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+                className="text-zinc-400 hover:text-white border border-white/5 bg-white/5"
+              >
+                {language === 'vi' ? '🇻🇳 VN' : '🇬🇧 EN'}
+              </Button>
               <div className="text-sm font-medium text-zinc-400">
-                Менеджер: <span className="text-white hover:text-primary transition-colors cursor-default">{user?.email?.split('@')[0] || "Shojiki Staff"}</span>
+                {t("manager")} <span className="text-white hover:text-primary transition-colors cursor-default">{user?.email?.split('@')[0] || "Shojiki Staff"}</span>
               </div>
               <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-purple-600 shadow-[0_0_15px_rgba(var(--primary),0.3)] ring-1 ring-white/10" />
             </div>

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth-context";
+import { LanguageProvider } from "@/lib/i18n";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -25,9 +26,11 @@ export default function RootLayout({
     <html lang="ru" className="dark h-full antialiased">
       <body className={`${inter.className} min-h-full bg-background`}>
         <AuthProvider>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
+          <LanguageProvider>
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

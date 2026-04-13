@@ -25,5 +25,5 @@ COPY app/ ./app/
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Production command: без --reload, с несколькими workers
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Production command: без --reload, с несколькими workers (Railway подставляет $PORT)
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]

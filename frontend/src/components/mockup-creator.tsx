@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { API_ENDPOINTS } from "@/lib/config"
 import { getFullImageUrl, downloadFile } from "@/lib/utils/url"
+import { useLanguage } from "@/lib/i18n"
 
 interface Point {
   x: number;
@@ -39,14 +40,7 @@ interface MockupCreatorProps {
 
 type ProcessingStage = 'idle' | 'uploading' | 'rendering' | 'saving' | 'completed' | 'failed';
 
-const STAGE_MESSAGES: Record<ProcessingStage, string> = {
-  idle: "",
-  uploading: "Загрузка изображений...",
-  rendering: "GPU рендеринг через Modal AI...",
-  saving: "Финализация мокапа...",
-  completed: "Мокап готов!",
-  failed: "Ошибка при обработке",
-};
+// STAGE_MESSAGES will be defined inside component to use t()
 
 const STAGE_PROGRESS: Record<ProcessingStage, number> = {
   idle: 0,
@@ -78,6 +72,16 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       ? location.screen_geometry
       : DEFAULT_CORNERS
   )
+  const { t } = useLanguage()
+
+  const STAGE_MESSAGES: Record<ProcessingStage, string> = {
+    idle: "",
+    uploading: t("stage_uploading"),
+    rendering: t("stage_rendering"),
+    saving: t("stage_saving"),
+    completed: t("stage_completed"),
+    failed: t("stage_failed"),
+  }
 
   React.useEffect(() => {
     setIsMounted(true)
@@ -138,8 +142,8 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       } else if (location?.primary_photo_url) {
         backgroundSrc = getFullImageUrl(location.primary_photo_url)
       }
-      if (!backgroundSrc) throw new Error("Отсутствует фоновое изображение")
-      if (!creativePreview) throw new Error("Отсутствует креатив")
+      if (!backgroundSrc) throw new Error(t("no_bg_image"))
+      if (!creativePreview) throw new Error(t("no_creative"))
 
       const renderCorners = location?.screen_geometry?.length === 4
         ? location.screen_geometry
@@ -283,9 +287,9 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           </DialogTitle>
           <DialogDescription>
             {location ? (
-              <>База: <span className="font-semibold text-foreground">{location.name}</span></>
+              <>{t("creator_base")} <span className="font-semibold text-foreground">{location.name}</span></>
             ) : (
-              "Режим «Street Upload» — загрузите фото с улицы"
+              t("creator_street_mode")
             )}
           </DialogDescription>
         </DialogHeader>
@@ -298,7 +302,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
               {/* Креатив */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  1. Баннер клиента <span className="text-red-400">*</span>
+                  {t("creator_client_banner")} <span className="text-red-400">*</span>
                 </label>
                 <label className={cn(
                   "flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed transition-all cursor-pointer group",
@@ -328,7 +332,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
               {/* Фон */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  2. Фото объекта {!location && <span className="text-red-400">*</span>}
+                  {t("creator_object_photo")} {!location && <span className="text-red-400">*</span>}
                 </label>
                 {!location || backgroundFile ? (
                   <label className={cn(
@@ -352,14 +356,14 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                           disabled={isDetecting}
                         >
                           {isDetecting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                          Авто-детекция углов
+                          {t("creator_auto_detect")}
                         </Button>
                       </div>
                     ) : (
                       <>
                         <Camera className="h-10 w-10 text-muted-foreground mb-2 group-hover:text-green-500 transition-colors" />
                         <p className="text-xs font-medium text-center px-4 text-muted-foreground">
-                          Снять или выбрать фото
+                          {t("creator_take_photo")}
                         </p>
                       </>
                     )}
@@ -384,7 +388,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
                       <p className="text-[10px] text-white font-medium bg-black/40 px-2 py-1 rounded-full backdrop-blur-md">
-                        📍 Базовое фото из каталога
+                        {t("creator_catalog_photo")}
                       </p>
                     </div>
                   </div>
@@ -418,7 +422,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {stage === 'rendering' ? 'Modal GPU • YOLO OBB • perspective warp' : ''}
-                  {stage === 'saving' ? 'Сохранение результата...' : ''}
+                  {stage === 'saving' ? t("creator_saving") : ''}
                 </p>
               </div>
             </div>
@@ -431,14 +435,14 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                 <AlertCircle className="h-10 w-10 text-red-400" />
               </div>
               <div className="text-center space-y-1">
-                <p className="font-bold text-red-400">Ошибка генерации</p>
+                <p className="font-bold text-red-400">{t("creator_gen_error")}</p>
                 {errorMessage && (
                   <p className="text-xs text-muted-foreground max-w-xs">{errorMessage}</p>
                 )}
               </div>
               <Button variant="outline" onClick={reset} className="gap-2">
                 <RefreshCw className="h-4 w-4" />
-                Попробовать снова
+                {t("creator_try_again")}
               </Button>
             </div>
           )}
@@ -454,7 +458,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                       <Check className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm">Мокап сгенерирован</p>
+                      <p className="font-bold text-sm">{t("creator_ready")}</p>
                       <p className="text-[10px] text-gray-400">Modal GPU • YOLO OBB detection</p>
                     </div>
                   </div>
@@ -464,7 +468,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                     className="bg-white text-black hover:bg-white/90 font-bold rounded-full gap-2 shadow-lg"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    СКАЧАТЬ
+                    {t("creator_download")}
                   </Button>
                 </div>
               </div>
@@ -480,7 +484,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
             className="rounded-full text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4 mr-2" />
-            Закрыть
+            {t("creator_close")}
           </Button>
 
           {stage === 'idle' && (
@@ -490,21 +494,21 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
               className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 rounded-full shadow-lg shadow-primary/20"
             >
               <Sparkles className="h-4 w-4" />
-              СГЕНЕРИРОВАТЬ
+              {t("creator_generate")}
             </Button>
           )}
 
           {stage === 'completed' && (
             <div className="flex gap-2">
               <Button variant="secondary" onClick={reset} className="rounded-full">
-                ЗАНОВО
+                {t("creator_retry")}
               </Button>
               <Button
                 onClick={handleDownload}
                 className="bg-primary hover:bg-primary/90 font-bold rounded-full px-8 gap-2"
               >
                 <Download className="h-4 w-4" />
-                СКАЧАТЬ
+                {t("creator_download")}
               </Button>
             </div>
           )}

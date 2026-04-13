@@ -7,6 +7,7 @@ import { Download, Calendar, Clock, Image as ImageIcon, Sparkles, Trash2, Refres
 import { Button } from '@/components/ui/button';
 import { API_ENDPOINTS } from "@/lib/config";
 import { getFullImageUrl, downloadFile } from "@/lib/utils/url";
+import { useLanguage } from "@/lib/i18n";
 
 interface MockupHistoryItem {
   id: string;
@@ -27,6 +28,7 @@ export function MockupHistory() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const fetchHistory = useCallback(async (currentOffset = 0, append = false) => {
     setLoading(true);
@@ -45,7 +47,7 @@ export function MockupHistory() {
       setHasMore(data.length === PAGE_SIZE);
       setOffset(currentOffset + data.length);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки");
+      setError(err instanceof Error ? err.message : t("err_network"));
     } finally {
       setLoading(false);
     }
@@ -88,11 +90,11 @@ export function MockupHistory() {
           <div className="p-4 rounded-full bg-red-500/10">
             <AlertCircle className="h-8 w-8 text-red-400" />
           </div>
-          <p className="font-bold text-red-400">Ошибка загрузки истории</p>
+          <p className="font-bold text-red-400">{t("err_history_load")}</p>
           <p className="text-xs text-zinc-500">{error}</p>
           <Button variant="outline" onClick={() => fetchHistory(0, false)} className="gap-2 border-red-500/30 text-red-400">
             <RefreshCw className="h-4 w-4" />
-            Повторить
+            {t("retry")}
           </Button>
         </div>
       </div>
@@ -119,8 +121,8 @@ export function MockupHistory() {
             <Sparkles className="h-10 w-10 text-zinc-700" />
           </div>
           <div className="space-y-1">
-            <p className="text-xl font-bold text-zinc-400">История генераций пуста</p>
-            <p className="text-zinc-600 text-sm">Создайте свой первый мокап в каталоге экранов</p>
+            <p className="text-xl font-bold text-zinc-400">{t("history_empty")}</p>
+            <p className="text-zinc-600 text-sm">{t("history_empty_subtitle")}</p>
           </div>
         </div>
       </div>
@@ -131,10 +133,10 @@ export function MockupHistory() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-          История генераций
+          {t("history_title")}
         </h2>
         <Badge className="bg-zinc-900/60 border-white/10 text-zinc-400">
-          {history.length} мокапов
+          {history.length} {t("mockups")}
         </Badge>
       </div>
 
@@ -202,7 +204,7 @@ export function MockupHistory() {
                       size="icon"
                       className="h-8 w-8 border-white/10 bg-black/40 backdrop-blur-md hover:bg-primary hover:text-white hover:border-primary transition-all"
                       onClick={() => handleDownload(item)}
-                      title="Скачать"
+                      title={t("download")}
                     >
                       <Download size={13} />
                     </Button>
@@ -213,7 +215,7 @@ export function MockupHistory() {
                     className="h-8 w-8 border-red-500/20 bg-black/40 backdrop-blur-md hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
                     onClick={() => handleDelete(item.id)}
                     disabled={deletingId === item.id}
-                    title="Удалить"
+                    title={t("delete")}
                   >
                     {deletingId === item.id
                       ? <RefreshCw size={13} className="animate-spin" />
@@ -237,7 +239,7 @@ export function MockupHistory() {
             className="gap-2 border-white/10 hover:border-primary/50"
           >
             {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Загрузить ещё
+            {t("load_more")}
           </Button>
         </div>
       )}

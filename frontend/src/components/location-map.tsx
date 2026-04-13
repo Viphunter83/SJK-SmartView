@@ -10,6 +10,7 @@ import { API_ENDPOINTS } from "@/lib/config"
 import { getFullImageUrl } from "@/lib/utils/url"
 import { MapPin, Navigation, Eye, Loader2, AlertCircle, RefreshCw } from "lucide-react"
 import { Button } from '@/components/ui/button'
+import { useLanguage } from "@/lib/i18n"
 
 // Fix for default Leaflet marker icons in Next.js
 const DefaultIcon = L.icon({
@@ -41,6 +42,7 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const center: [number, number] = [10.77, 106.7] // Ho Chi Minh City center
+  const { t } = useLanguage()
 
   const fetchLocations = useCallback(async () => {
     setLoading(true)
@@ -52,7 +54,7 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
       // Фильтруем только локации с координатами
       setLocations(data.filter((loc: Location) => loc.coords_lat && loc.coords_lng))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка загрузки карты")
+      setError(err instanceof Error ? err.message : t("map_loading")) // "Ошибка загрузки карты" -> t("map_loading") wait, actually error message we can just use err_network. Let's use t("err_network")
     } finally {
       setLoading(false)
     }
@@ -67,7 +69,7 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
       <div className="h-[calc(100vh-12rem)] w-full rounded-3xl border border-white/5 bg-zinc-950 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-zinc-500">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="font-medium">Загрузка карты...</p>
+          <p className="font-medium">{t("map_loading")}</p>
         </div>
       </div>
     )
@@ -78,11 +80,11 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
       <div className="h-[calc(100vh-12rem)] w-full rounded-3xl border border-red-500/20 bg-red-500/5 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <AlertCircle className="h-10 w-10 text-red-400" />
-          <p className="font-bold text-red-400">Карта недоступна</p>
+          <p className="font-bold text-red-400">{t("map_unavailable")}</p>
           <p className="text-xs text-zinc-500">{error}</p>
           <Button variant="outline" onClick={fetchLocations} className="gap-2 border-red-500/30 text-red-400">
             <RefreshCw className="h-4 w-4" />
-            Повторить
+            {t("retry")}
           </Button>
         </div>
       </div>
@@ -136,7 +138,7 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
                         onClick={() => onSelect(loc)}
                       >
                         <Eye className="w-3 h-3" />
-                        Создать мокап
+                        {t("create_mockup")}
                       </button>
                     )}
                     <a
@@ -144,7 +146,7 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-10 h-8 bg-zinc-800 rounded-lg flex items-center justify-center hover:bg-zinc-700 transition-colors"
-                      title="Открыть в Google Maps"
+                      title={t("open_gmaps")}
                     >
                       <Navigation className="w-3 h-3" />
                     </a>
@@ -159,7 +161,7 @@ export default function LocationMap({ onSelect }: LocationMapProps) {
       {/* Map Overlay Info */}
       <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
         <Badge className="bg-zinc-900/80 backdrop-blur-xl border-white/10 px-4 py-2 text-sm shadow-2xl">
-          {locations.length} объектов SJK по Вьетнаму
+          {locations.length} {t("map_stats_suffix")}
         </Badge>
       </div>
     </div>

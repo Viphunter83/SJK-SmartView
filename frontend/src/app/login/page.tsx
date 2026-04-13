@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { auth } from "@/lib/firebase"
 import { signInWithEmailAndPassword } from "firebase/auth"
+import { useLanguage } from "@/lib/i18n"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const router = useRouter()
+  const { t } = useLanguage()
 
   async function onSubmit(event: React.SyntheticEvent) {
     event.preventDefault()
@@ -30,11 +32,11 @@ export default function LoginPage() {
       // Переводим Firebase коды ошибок в понятные сообщения
       const code = (err as { code?: string }).code || ""
       if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
-        setError("Неверный email или пароль")
+        setError(t("err_invalid_cred"))
       } else if (code === "auth/too-many-requests") {
-        setError("Слишком много попыток. Попробуйте позже")
+        setError(t("err_too_many_req"))
       } else {
-        setError("Ошибка входа. Проверьте соединение")
+        setError(t("err_network"))
       }
     } finally {
       setIsLoading(false)
@@ -51,9 +53,9 @@ export default function LoginPage() {
             <Box className="h-8 w-8" />
           </div>
           <div className="space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight text-white">SJK SmartView</CardTitle>
+            <CardTitle className="text-3xl font-bold tracking-tight text-white">{t("login_title")}</CardTitle>
             <CardDescription className="text-zinc-500 text-sm">
-              Войдите в систему управления рекламными поверхностями
+              {t("login_subtitle")}
             </CardDescription>
           </div>
         </CardHeader>
@@ -61,10 +63,10 @@ export default function LoginPage() {
           <form onSubmit={onSubmit}>
             <div className="grid gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email" className="text-zinc-400 text-xs font-bold uppercase tracking-widest pl-1">Email</Label>
+                <Label htmlFor="email" className="text-zinc-400 text-xs font-bold uppercase tracking-widest pl-1">{t("email_label")}</Label>
                 <Input
                   id="email"
-                  placeholder="name@shojiki.vn"
+                  placeholder={t("email_placeholder")}
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -77,7 +79,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="password" className="text-zinc-400 text-xs font-bold uppercase tracking-widest pl-1">Пароль</Label>
+                <Label htmlFor="password" className="text-zinc-400 text-xs font-bold uppercase tracking-widest pl-1">{t("password_label")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -96,10 +98,10 @@ export default function LoginPage() {
               )}
               <Button disabled={isLoading} className="h-11 font-bold shadow-lg shadow-primary/20 transition-all active:scale-95">
                 {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="flex items-center"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("login_loading")}</span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    Войти в систему <ArrowRight className="h-4 w-4" />
+                    {t("login_button")} <ArrowRight className="h-4 w-4" />
                   </span>
                 )}
               </Button>
@@ -109,7 +111,7 @@ export default function LoginPage() {
 
         <CardFooter className="flex flex-col gap-4 text-center">
           <div className="text-xs text-zinc-600 flex items-center gap-1">
-            <Sparkles className="h-3 w-3" /> Корпоративный доступ Shojiki
+            <Sparkles className="h-3 w-3" /> {t("login_corp_access")}
           </div>
         </CardFooter>
       </Card>
