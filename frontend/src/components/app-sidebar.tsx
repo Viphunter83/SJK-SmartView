@@ -8,8 +8,10 @@ import {
   Settings, 
   Plus, 
   Box,
-  Image as ImageIcon
+  Image as ImageIcon,
+  LogOut
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
   Sidebar,
@@ -19,11 +21,22 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  currentTab: 'catalog' | 'history' | 'map';
+  onTabChange: (tab: 'catalog' | 'history' | 'map') => void;
+  onOpenCreator: () => void;
+}
+
+export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSidebarProps) {
+  const router = useRouter()
+  
+  const handleLogout = () => {
+    // В MVP просто редирект на логин
+    router.push('/login')
+  }
+
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/50 backdrop-blur-xl">
       <SidebarHeader className="p-4">
@@ -37,25 +50,40 @@ export function AppSidebar() {
       <SidebarContent className="px-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Каталог экранов" isActive>
+            <SidebarMenuButton 
+              tooltip="Каталог экранов" 
+              isActive={currentTab === 'catalog'}
+              onClick={() => onTabChange('catalog')}
+            >
               <Monitor className="h-5 w-5" />
               <span>Каталог экранов</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Загрузить с улицы">
+            <SidebarMenuButton 
+              tooltip="Загрузить с улицы"
+              onClick={onOpenCreator}
+            >
               <Plus className="h-5 w-5" />
               <span>Загрузить с улицы</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="История">
+            <SidebarMenuButton 
+              tooltip="История"
+              isActive={currentTab === 'history'}
+              onClick={() => onTabChange('history')}
+            >
               <History className="h-5 w-5" />
               <span>История мокапов</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Карта объектов">
+            <SidebarMenuButton 
+              tooltip="Карта объектов"
+              isActive={currentTab === 'map'}
+              onClick={() => onTabChange('map')}
+            >
               <Map className="h-5 w-5" />
               <span>Карта объектов</span>
             </SidebarMenuButton>
@@ -65,9 +93,9 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Настройки">
-              <Settings className="h-5 w-5" />
-              <span>Настройки</span>
+            <SidebarMenuButton tooltip="Выйти" onClick={handleLogout} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+              <LogOut className="h-5 w-5" />
+              <span>Выйти</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

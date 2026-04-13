@@ -1,74 +1,99 @@
 'use client';
 
 import React, { useState } from 'react';
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { LocationCatalog } from "@/components/location-catalog"
 import { MockupHistory } from "@/components/mockup-history"
 import { MockupCreator } from "@/components/mockup-creator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { History, LayoutGrid } from "lucide-react"
+import { History, LayoutGrid, Map as MapIcon } from "lucide-react"
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'catalog' | 'history'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'history' | 'map'>('catalog');
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
 
-  const handleSelectLocation = (location: any) => {
+  const handleOpenCreator = (location: any = null) => {
     setSelectedLocation(location);
     setIsCreatorOpen(true);
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-black text-white">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-800 px-6 backdrop-blur-md sticky top-0 z-50 bg-black/50">
-          <div className="flex items-center gap-4">
-            <SidebarTrigger />
-            <div className="flex bg-zinc-900 rounded-lg p-1 p-1">
-              <Button 
-                variant={activeTab === 'catalog' ? 'secondary' : 'ghost'} 
-                size="sm"
-                onClick={() => setActiveTab('catalog')}
-                className="gap-2"
-              >
-                <LayoutGrid size={16} /> Каталог
-              </Button>
-              <Button 
-                variant={activeTab === 'history' ? 'secondary' : 'ghost'} 
-                size="sm"
-                onClick={() => setActiveTab('history')}
-                className="gap-2"
-              >
-                <History size={16} /> История
-              </Button>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-black text-white selection:bg-primary/30">
+        <AppSidebar 
+          currentTab={activeTab} 
+          onTabChange={setActiveTab} 
+          onOpenCreator={() => handleOpenCreator(null)}
+        />
+        <main className="flex-1 overflow-auto bg-gradient-to-br from-black via-[#0a0a0a] to-[#0f0f0f]">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-white/5 px-6 backdrop-blur-md sticky top-0 z-50 bg-black/40">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
+              <div className="flex bg-zinc-900/50 backdrop-blur-md border border-white/5 rounded-xl p-1 shadow-inner">
+                <Button 
+                  variant={activeTab === 'catalog' ? 'secondary' : 'ghost'} 
+                  size="sm"
+                  onClick={() => setActiveTab('catalog')}
+                  className="gap-2 transition-all duration-300"
+                >
+                  <LayoutGrid size={16} /> Каталог
+                </Button>
+                <Button 
+                  variant={activeTab === 'history' ? 'secondary' : 'ghost'} 
+                  size="sm"
+                  onClick={() => setActiveTab('history')}
+                  className="gap-2 transition-all duration-300"
+                >
+                  <History size={16} /> История
+                </Button>
+                <Button 
+                  variant={activeTab === 'map' ? 'secondary' : 'ghost'} 
+                  size="sm"
+                  onClick={() => setActiveTab('map')}
+                  className="gap-2 transition-all duration-300"
+                >
+                  <MapIcon size={16} /> Карта
+                </Button>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-sm font-medium text-zinc-400">
-              Менеджер: <span className="text-white">Константин В.</span>
+            
+            <div className="flex items-center gap-4">
+              <div className="text-sm font-medium text-zinc-400">
+                Менеджер: <span className="text-white hover:text-primary transition-colors cursor-default">Константин В.</span>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-purple-600 shadow-[0_0_15px_rgba(var(--primary),0.3)] ring-1 ring-white/10" />
             </div>
-            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-orange-500 to-purple-500 shadow-lg shadow-orange-500/20" />
-          </div>
-        </header>
+          </header>
 
-        <div className="p-6">
-          {activeTab === 'catalog' ? (
-            <LocationCatalog onSelect={handleSelectLocation} />
-          ) : (
-            <MockupHistory />
+          <div className="p-6 max-w-[1600px] mx-auto min-h-[calc(100vh-4rem)]">
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+              {activeTab === 'catalog' && (
+                <LocationCatalog onSelect={handleOpenCreator} />
+              )}
+              {activeTab === 'history' && (
+                <MockupHistory />
+              )}
+              {activeTab === 'map' && (
+                <div className="flex flex-col items-center justify-center h-[60vh] text-zinc-500 border-2 border-dashed border-white/5 rounded-3xl">
+                  <MapIcon size={48} className="mb-4 opacity-20" />
+                  <p className="text-xl font-medium">Интерактивная карта объектов</p>
+                  <p className="text-sm">Функционал находится в разработке</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {isCreatorOpen && (
+            <MockupCreator 
+              location={selectedLocation} 
+              onClose={() => setIsCreatorOpen(false)} 
+            />
           )}
-        </div>
-
-        {isCreatorOpen && (
-          <MockupCreator 
-            location={selectedLocation} 
-            onClose={() => setIsCreatorOpen(false)} 
-          />
-        )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }

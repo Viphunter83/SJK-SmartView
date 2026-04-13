@@ -11,6 +11,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 interface Location {
   id: string;
   name: string;
@@ -74,7 +75,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       
       formData.append("location_id", location?.id || "custom")
 
-      const response = await fetch("http://localhost:8000/v1/mockup/generate", {
+      const response = await fetch("http://localhost:8000/api/v1/mockup/generate", {
         method: "POST",
         body: formData,
       })
@@ -105,7 +106,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
   const isProcessing = stage !== 'idle' && stage !== 'completed' && stage !== 'failed';
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { reset(); onClose(); } }}>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) { reset(); onClose(); } }}>
       <DialogContent className="sm:max-w-[600px] border-border/40 bg-background/95 backdrop-blur-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl font-bold tracking-tight">

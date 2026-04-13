@@ -4,9 +4,14 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.schemas import GenerationResponse, LocationInfo, MockupHistoryItem
-from app.database import get_db
+from app.database import engine, get_db
 from app import models
-from typing import List
+from app.storage import storage_service
+from fastapi.staticfiles import StaticFiles
+
+# Создание таблиц при запуске
+models.Base.metadata.create_all(bind=engine)
+from typing import List, Optional
 import uuid
 
 # Импорт Modal функции
@@ -25,6 +30,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Раздача статики (для локального fallback)
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 async def root():
@@ -100,30 +110,30 @@ async def generate_mockup(
             except ValueError:
                 pass
 
-        # 3. Вызов Modal AI в облаке
+        # 3. Вызов Modal AI и сохранение файлов
+        creative_url = await storage_service.upload_file(cr_bytes, creative.filename)
+        
         mockup_url = None
         status = "completed"
         processing_time = 0
 
         if f:
-            # Вызываем удаленную функцию на GPU
-            # Modal вернет байты изображения или URL
+            # Вызываем удаленную функцию
             result_data = f.remote(bg_bytes, cr_bytes, corners)
             
-            # Для MVP: сохраняем результат как Data URL в базу (в реальном SJK это S3)
-            # В будущем здесь будет логика загрузки в Supabase Storage
-            mockup_url = f"data:image/jpeg;base64,{result_data}" if isinstance(result_data, str) else "https://placeholder.com/result.jpg"
+            # Сохраняем результат в хранилище (результат от Modal - байты)
+            mockup_url = await storage_service.upload_file(result_data, "result.jpg")
             processing_time = round(time.time() - start_time, 2)
         else:
             time.sleep(1) # Имитация
-            mockup_url = "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d" # Заглушка
+            mockup_url = "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d" 
             status = "completed"
             processing_time = round(time.time() - start_time, 2)
 
         # 4. Сохранение в историю (Mockups table)
         new_mockup = models.Mockup(
             location_id=db_location_id,
-            creative_url="uploaded_creative", # В реальности здесь путь к файлу
+            creative_url=creative_url, 
             result_url=mockup_url,
             status=status,
             metadata_json={"processing_time": processing_time}

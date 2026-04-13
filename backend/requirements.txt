@@ -9,3 +9,4 @@ opencv-python-headless
 numpy
 pillow
 modal
+boto3
