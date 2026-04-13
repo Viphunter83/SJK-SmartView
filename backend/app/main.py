@@ -345,6 +345,7 @@ async def generate_mockup(
     creative: UploadFile = File(...),
     background: Optional[UploadFile] = File(None),
     location_id: str = Form("custom"),
+    corners_json: Optional[str] = Form(None),
     result_url: Optional[str] = Form(None),  # Client-side canvas result URL
     db: Session = Depends(get_db)
 ):
@@ -379,6 +380,16 @@ async def generate_mockup(
                                 corners = raw
             except ValueError:
                 pass
+        
+        # Если кастомная локация (или углов в БД нет), но пользователь выбрал точки вручную
+        if not corners and corners_json:
+            import json
+            try:
+                parsed_corners = json.loads(corners_json)
+                if isinstance(parsed_corners, list) and len(parsed_corners) == 4:
+                    corners = [[p["x"], p["y"]] for p in parsed_corners]
+            except Exception as e:
+                print(f"Warning: Failed to parse corners_json: {e}")
 
         # Загружаем креатив в хранилище
         creative_storage_url = await storage_service.upload_file(

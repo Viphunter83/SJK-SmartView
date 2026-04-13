@@ -180,6 +180,9 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           formData.append("creative", creativeFile)
           formData.append("background", bgFile)
           formData.append("location_id", location?.id || "custom")
+          if (renderCorners && renderCorners.length === 4) {
+            formData.append("corners_json", JSON.stringify(renderCorners))
+          }
           // Не передаём result_url → бэкенд запустит Modal GPU
 
           const controller = new AbortController()
