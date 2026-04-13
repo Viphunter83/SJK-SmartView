@@ -1,14 +1,26 @@
 import time
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+import os
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from app.schemas import GenerationResponse
+from sqlalchemy.orm import Session
+from app.schemas import GenerationResponse, LocationInfo, MockupHistoryItem
+from app.database import get_db
+from app import models
+from typing import List
+import uuid
+
+# Импорт Modal функции
+try:
+    import modal
+    f = modal.Function.lookup("sjk-smartview-ai", "process_mockup")
+except Exception:
+    f = None
 
 app = FastAPI(title="SJK SmartView API", version="0.1.0")
 
-# Настройка CORS для фронтенда
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # В продакшене ограничить!
+    allow_origins=["*"], # В продакшене ограничить!
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -18,40 +30,115 @@ app.add_middleware(
 async def root():
     return {"status": "online", "message": "SJK SmartView API Dispatcher is ready"}
 
+@app.get("/api/v1/locations", response_model=List[LocationInfo])
+async def get_locations(db: Session = Depends(get_db)):
+    locations = db.query(models.Location).all()
+    return locations
+
+@app.get("/api/v1/history", response_model=List[MockupHistoryItem])
+async def get_history(db: Session = Depends(get_db)):
+    # Пока возвращаем все мокапы (без фильтра по пользователю для MVP)
+    mockups = db.query(models.Mockup).order_by(models.Mockup.created_at.desc()).limit(20).all()
+    
+    result = []
+    for m in mockups:
+        loc_name = "Custom / Street"
+        if m.location_id:
+            loc = db.query(models.Location).filter(models.Location.id == m.location_id).first()
+            if loc:
+                loc_name = loc.name
+        
+        result.append(MockupHistoryItem(
+            id=m.id,
+            location_name=loc_name,
+            creative_url=m.creative_url,
+            result_url=m.result_url,
+            status=m.status,
+            created_at=m.created_at,
+            processing_time=m.metadata_json.get("processing_time", 0) if m.metadata_json else 0
+        ))
+    return result
+
 @app.post("/v1/mockup/generate", response_model=GenerationResponse)
 async def generate_mockup(
-    background: UploadFile = File(...),
     creative: UploadFile = File(...),
-    location_id: str = Form(...)
+    background: Optional[UploadFile] = File(None),
+    location_id: str = Form("custom"),
+    db: Session = Depends(get_db)
 ):
     """
-    Основной воркер для генерации мокапа.
-    Принимает фоновое фото и файл баннера.
+    Основной диспетчер для генерации мокапа.
     """
     start_time = time.time()
     
     try:
-        # 1. Валидация типов
-        if not background.content_type.startswith("image/"):
-            raise HTTPException(status_code=400, detail="Background must be an image")
+        # 1. Чтение байтов
+        bg_bytes = None
+        if background:
+            bg_bytes = await background.read()
         
-        # 2. Логика диспетчера:
-        # В реальной версии здесь будет вызов Modal.com функций
-        # background_bytes = await background.read()
-        # creative_bytes = await creative.read()
+        cr_bytes = await creative.read()
         
-        # Симуляция работы AI воркера
-        time.sleep(2) 
+        # 2. Определение параметров локации
+        corners = None
+        db_location_id = None
         
-        # 3. Возврат результата
-        # Заглушка: возвращаем URL первого фото как результат
+        if location_id != "custom":
+            try:
+                loc_uuid = uuid.UUID(location_id)
+                loc = db.query(models.Location).filter(models.Location.id == loc_uuid).first()
+                if loc:
+                    db_location_id = loc.id
+                    if loc.screen_geometry and "corners" in loc.screen_geometry:
+                        corners = loc.screen_geometry["corners"]
+                    
+                    # Если фоновое фото не прислано, пытаемся взять из БД/URL
+                    if not bg_bytes and loc.primary_photo_url:
+                        # В реальном приложении здесь был бы вызов к хранилищу
+                        # Для MVP: если это URL, воркер может сам его скачать или мы передаем null
+                        pass 
+            except ValueError:
+                pass
+
+        # 3. Вызов Modal AI в облаке
+        mockup_url = None
+        status = "completed"
+        processing_time = 0
+
+        if f:
+            # Вызываем удаленную функцию на GPU
+            # Modal вернет байты изображения или URL
+            result_data = f.remote(bg_bytes, cr_bytes, corners)
+            
+            # Для MVP: сохраняем результат как Data URL в базу (в реальном SJK это S3)
+            # В будущем здесь будет логика загрузки в Supabase Storage
+            mockup_url = f"data:image/jpeg;base64,{result_data}" if isinstance(result_data, str) else "https://placeholder.com/result.jpg"
+            processing_time = round(time.time() - start_time, 2)
+        else:
+            time.sleep(1) # Имитация
+            mockup_url = "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d" # Заглушка
+            status = "completed"
+            processing_time = round(time.time() - start_time, 2)
+
+        # 4. Сохранение в историю (Mockups table)
+        new_mockup = models.Mockup(
+            location_id=db_location_id,
+            creative_url="uploaded_creative", # В реальности здесь путь к файлу
+            result_url=mockup_url,
+            status=status,
+            metadata_json={"processing_time": processing_time}
+        )
+        db.add(new_mockup)
+        db.commit()
+
         return GenerationResponse(
-            status="completed",
-            mockup_url="https://images.unsplash.com/photo-1517430816045-df4b7de11d1d", 
-            processing_time=round(time.time() - start_time, 2)
+            status=status,
+            mockup_url=mockup_url, 
+            processing_time=processing_time
         )
         
     except Exception as e:
+        db.rollback()
         return GenerationResponse(
             status="failed",
             error=str(e),
