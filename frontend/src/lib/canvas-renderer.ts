@@ -280,10 +280,18 @@ export async function renderMockup(
   // 1. Рисуем фон
   ctx.drawImage(bgImg, 0, 0);
 
-  // 2. Накладываем креатив с perspective warp
-  await warpImage(crImg, canvas, corners, options);
+  // 2. Масштабируем координаты из пространства 800×600 (БД) в реальное разрешение
+  const scaleX = bgImg.naturalWidth / 800.0;
+  const scaleY = bgImg.naturalHeight / 600.0;
+  const scaledCorners = corners.map(p => ({
+    x: p.x * scaleX,
+    y: p.y * scaleY,
+  }));
 
-  // 3. Лёгкая виньетка для реализма
+  // 3. Накладываем креатив с perspective warp
+  await warpImage(crImg, canvas, scaledCorners, options);
+
+  // 4. Лёгкая виньетка для реализма
   const gradient = ctx.createRadialGradient(
     canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
     canvas.width / 2, canvas.height / 2, canvas.width * 0.7

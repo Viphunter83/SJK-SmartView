@@ -209,23 +209,48 @@ async def detect_corners(
 
         if img is not None:
             h, w = img.shape[:2]
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            edges = cv2.Canny(blurred, 50, 150)
+            min_area = w * h * 0.03  # минимум 3% площади
 
-            # Найти контуры и взять самый большой прямоугольный
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Стратегия 1: HSV яркость
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            _, bright = cv2.threshold(hsv[:, :, 2], 180, 255, cv2.THRESH_BINARY)
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+            closed = cv2.morphologyEx(bright, cv2.MORPH_CLOSE, kernel)
+            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
             best_corners = None
-            max_area = 0
+            max_area = min_area
 
             for cnt in contours:
-                peri = cv2.arcLength(cnt, True)
-                approx = cv2.approxPolyDP(cnt, 0.02 * peri, True)
-                if len(approx) == 4:
-                    area = cv2.contourArea(approx)
-                    if area > max_area and area > (w * h * 0.05):
-                        max_area = area
-                        best_corners = approx.reshape(4, 2).tolist()
+                area = cv2.contourArea(cnt)
+                if area > max_area:
+                    rect = cv2.minAreaRect(cnt)
+                    box = cv2.boxPoints(rect).tolist()
+                    max_area = area
+                    best_corners = box
+
+            # Стратегия 2: CLAHE + Canny
+            if not best_corners:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                enhanced = clahe.apply(gray)
+                blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
+                edges = cv2.Canny(blurred, 50, 150)
+                kernel2 = np.ones((5, 5), np.uint8)
+                edges = cv2.dilate(edges, kernel2, iterations=2)
+                edges = cv2.erode(edges, kernel2, iterations=1)
+                contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                for cnt in contours:
+                    area = cv2.contourArea(cnt)
+                    if area > max_area:
+                        x_r, y_r, w_r, h_r = cv2.boundingRect(cnt)
+                        rect_fill = area / (w_r * h_r) if w_r * h_r > 0 else 0
+                        if rect_fill > 0.5:
+                            rect = cv2.minAreaRect(cnt)
+                            box = cv2.boxPoints(rect).tolist()
+                            max_area = area
+                            best_corners = box
 
             if best_corners:
                 # Сортируем углы: TL, TR, BR, BL
@@ -245,7 +270,7 @@ async def detect_corners(
                 return CornerDetectionResponse(
                     corners=corners,
                     confidence=0.75,
-                    message="Контур найден через OpenCV",
+                    message="Экран найден через OpenCV (HSV + морфология)",
                     method="opencv"
                 )
 

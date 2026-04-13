@@ -77,13 +77,15 @@ def process_mockup(
     if not corners:
         corners = _detect_corners_yolo(bg, w, h)
     else:
-        # Базовые координаты в БД нормализованы под холст 800x600.
-        # Необходимо смасштабировать их под РЕАЛЬНОЕ разрешение фотографии:
+        # Координаты в БД заданы в абсолютном пространстве 800×600.
+        # Масштабируем пропорционально до реального разрешения фото.
+        scale_x = w / 800.0
+        scale_y = h / 600.0
         scaled_corners = []
         for p in corners:
             scaled_corners.append([
-                p[0] * (w / 800.0),
-                p[1] * (h / 600.0)
+                p[0] * scale_x,
+                p[1] * scale_y,
             ])
         corners = scaled_corners
 
@@ -168,80 +170,119 @@ def detect_corners(image_bytes: bytes) -> dict:
 # ──────────────────────────────────────────────
 
 def _detect_corners_opencv(img, w, h) -> list:
-    """Контурный поиск экранов (замена, если YOLO не справился)."""
+    """
+    Многостратегийная детекция LED-экранов через OpenCV.
+    Стратегия 1: HSV яркость (экраны ярче окружения)
+    Стратегия 2: CLAHE + Canny + морфология
+    Стратегия 3: Адаптивный порог
+    Везде используем minAreaRect (всегда 4 угла) вместо approxPolyDP.
+    """
     import cv2
     import numpy as np
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    # Повышение контраста (полезно для ярких экранов на улице)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    gray = clahe.apply(gray)
-    
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    # Адаптивный порог (Canny)
-    edges = cv2.Canny(blurred, 50, 150)
-    
-    # Соединяем "разрывы" в краях
-    kernel = np.ones((3,3), np.uint8)
-    edges = cv2.dilate(edges, kernel, iterations=1)
+    min_area = w * h * 0.03  # Минимум 3% площади изображения
 
-    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    best_corners = None
-    max_area = 0
-
-    for cnt in contours:
-        peri = cv2.arcLength(cnt, True)
-        # Аппроксимация формы до многоугольника (ищем 4 угла)
-        approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
-        if len(approx) == 4:
-            area = cv2.contourArea(approx)
-            # Экран должен занимать хотя бы 5% площади всего фото
-            if area > max_area and area > (w * h * 0.05):
-                max_area = area
-                best_corners = approx.reshape(4, 2).tolist()
-                
-    if best_corners:
-        return best_corners
+    # ── Стратегия 1: HSV яркость ──────────────────────────────────
+    try:
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        # Экраны обычно очень яркие (V > 180)
+        _, bright_mask = cv2.threshold(hsv[:, :, 2], 180, 255, cv2.THRESH_BINARY)
         
-    # Second pass: Fallback порога если Canny не сработал
-    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    for cnt in contours:
-        peri = cv2.arcLength(cnt, True)
-        approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
-        if len(approx) == 4:
-            area = cv2.contourArea(approx)
-            if area > max_area and area > (w * h * 0.05):
+        # Морфология: закрываем дыры внутри экрана
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
+        closed = cv2.morphologyEx(bright_mask, cv2.MORPH_CLOSE, kernel)
+        # Убираем мелкий шум
+        closed = cv2.morphologyEx(closed, cv2.MORPH_OPEN, 
+                                   cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)))
+
+        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        best = None
+        max_area = min_area
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area > max_area:
+                rect = cv2.minAreaRect(cnt)
+                box = cv2.boxPoints(rect)
                 max_area = area
-                best_corners = approx.reshape(4, 2).tolist()
-                
-    return best_corners
+                best = box.tolist()
+        
+        if best:
+            return best
+    except Exception as e:
+        print(f"HSV detection failed: {e}")
+
+    # ── Стратегия 2: CLAHE + Canny + морфология ────────────────────
+    try:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
+        blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
+        
+        # Адаптивный Canny
+        median_val = float(np.median(blurred))
+        low = int(max(0, 0.5 * median_val))
+        high = int(min(255, 1.5 * median_val))
+        edges = cv2.Canny(blurred, low, high)
+        
+        # Соединяем разрывы
+        kernel = np.ones((5, 5), np.uint8)
+        edges = cv2.dilate(edges, kernel, iterations=2)
+        edges = cv2.erode(edges, kernel, iterations=1)
+
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        best = None
+        max_area = min_area
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area > max_area:
+                # Проверяем "прямоугольность": area / boundingRect area > 0.6
+                x_r, y_r, w_r, h_r = cv2.boundingRect(cnt)
+                rect_fill = area / (w_r * h_r) if w_r * h_r > 0 else 0
+                if rect_fill > 0.5:
+                    rect = cv2.minAreaRect(cnt)
+                    box = cv2.boxPoints(rect)
+                    max_area = area
+                    best = box.tolist()
+        
+        if best:
+            return best
+    except Exception as e:
+        print(f"CLAHE+Canny detection failed: {e}")
+
+    # ── Стратегия 3: Адаптивный порог ──────────────────────────────
+    try:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        for thresh_val in [150, 120, 180, 200]:
+            _, thresh = cv2.threshold(gray, thresh_val, 255, cv2.THRESH_BINARY)
+            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            best = None
+            max_area = min_area
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area > max_area:
+                    rect = cv2.minAreaRect(cnt)
+                    box = cv2.boxPoints(rect)
+                    max_area = area
+                    best = box.tolist()
+            
+            if best:
+                return best
+    except Exception as e:
+        print(f"Threshold detection failed: {e}")
+
+    return None
 
 
 def _detect_corners_yolo(img, w, h) -> list:
-    """Детекция углов. YOLO OBB -> OpenCV -> Fallback 15%."""
-    try:
-        from ultralytics import YOLO
-
-        model = YOLO(YOLO_MODEL_NAME)
-        results = model.predict(img, task="obb", verbose=False)
-
-        if results and results[0].obb is not None and len(results[0].obb) > 0:
-            # Берём detection с максимальной уверенностью
-            confs = results[0].obb.conf.cpu().numpy()
-            best_idx = confs.argmax()
-
-            # xyxyxyxy → [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
-            points = results[0].obb.xyxyxyxy.cpu().numpy()[best_idx]
-            if points.shape == (4, 2):
-                return points.tolist()
-    except Exception as e:
-        print(f"YOLO detection failed: {e}")
-
+    """Детекция углов: улучшенный OpenCV → Fallback 15%.
+    
+    Примечание: YOLO OBB yolo11n-obb.pt обучена на DOTA (спутниковые снимки),
+    не содержит класса 'LED screen'. Оставляем OpenCV как основной метод.
+    """
+    # Основной метод — мульти-стратегийный OpenCV
     try:
         cv_corners = _detect_corners_opencv(img, w, h)
         if cv_corners is not None:
