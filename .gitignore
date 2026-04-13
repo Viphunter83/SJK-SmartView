@@ -52,3 +52,7 @@ backend/uploads/
 
 # Build artifacts
 dist/
+
+# Temporary debug files
+*_vars.json
+locations_output.json

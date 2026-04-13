@@ -66,6 +66,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
   const [stage, setStage] = React.useState<ProcessingStage>('idle')
   const [result, setResult] = React.useState<string | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [usedModal, setUsedModal] = React.useState(false)
   const [isDetecting, setIsDetecting] = React.useState(false)
   const [points, setPoints] = React.useState<Point[]>(
     location?.screen_geometry?.length === 4
@@ -195,7 +196,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
             const data = await response.json()
             if (data.status === "completed" && data.mockup_url) {
               resultUrl = data.mockup_url
-              usedModal = true
+              setUsedModal(true)
             }
           }
         } catch (modalError) {
@@ -245,7 +246,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       setResult(resultUrl)
       setStage('completed')
 
-      console.log(`Mockup generated via: ${usedModal ? "Modal GPU 🚀" : "Canvas fallback"}`)
+      console.log(`Mockup generated via: ${resultUrl ? "Modal GPU 🚀" : "Canvas fallback"}`)
 
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
@@ -270,6 +271,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
     setResult(null)
     setStage('idle')
     setErrorMessage(null)
+    setUsedModal(false)
   }
 
   const isProcessing = stage !== 'idle' && stage !== 'completed' && stage !== 'failed'
@@ -459,7 +461,9 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                     </div>
                     <div>
                       <p className="font-bold text-sm">{t("creator_ready")}</p>
-                      <p className="text-[10px] text-gray-400">Modal GPU • YOLO OBB detection</p>
+                      <p className="text-[10px] text-gray-400">
+                        {usedModal ? "Modal GPU Processed" : "Client Canvas Fallback"}
+                      </p>
                     </div>
                   </div>
                   <Button

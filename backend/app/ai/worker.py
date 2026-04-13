@@ -76,6 +76,16 @@ def process_mockup(
     # ── 2. Детекция углов YOLO OBB (если не переданы) ──────────
     if not corners:
         corners = _detect_corners_yolo(bg, w, h)
+    else:
+        # Базовые координаты в БД нормализованы под холст 800x600.
+        # Необходимо смасштабировать их под РЕАЛЬНОЕ разрешение фотографии:
+        scaled_corners = []
+        for p in corners:
+            scaled_corners.append([
+                p[0] * (w / 800.0),
+                p[1] * (h / 600.0)
+            ])
+        corners = scaled_corners
 
     # Нормализуем структуру углов
     corners_np = np.array(corners, dtype="float32")
@@ -157,8 +167,63 @@ def detect_corners(image_bytes: bytes) -> dict:
 # Вспомогательные функции (выполняются на GPU worker)
 # ──────────────────────────────────────────────
 
+def _detect_corners_opencv(img, w, h) -> list:
+    """Контурный поиск экранов (замена, если YOLO не справился)."""
+    import cv2
+    import numpy as np
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # Повышение контраста (полезно для ярких экранов на улице)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
+    
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    
+    # Адаптивный порог (Canny)
+    edges = cv2.Canny(blurred, 50, 150)
+    
+    # Соединяем "разрывы" в краях
+    kernel = np.ones((3,3), np.uint8)
+    edges = cv2.dilate(edges, kernel, iterations=1)
+
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    best_corners = None
+    max_area = 0
+
+    for cnt in contours:
+        peri = cv2.arcLength(cnt, True)
+        # Аппроксимация формы до многоугольника (ищем 4 угла)
+        approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
+        if len(approx) == 4:
+            area = cv2.contourArea(approx)
+            # Экран должен занимать хотя бы 5% площади всего фото
+            if area > max_area and area > (w * h * 0.05):
+                max_area = area
+                best_corners = approx.reshape(4, 2).tolist()
+                
+    if best_corners:
+        return best_corners
+        
+    # Second pass: Fallback порога если Canny не сработал
+    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for cnt in contours:
+        peri = cv2.arcLength(cnt, True)
+        approx = cv2.approxPolyDP(cnt, 0.04 * peri, True)
+        if len(approx) == 4:
+            area = cv2.contourArea(approx)
+            if area > max_area and area > (w * h * 0.05):
+                max_area = area
+                best_corners = approx.reshape(4, 2).tolist()
+                
+    return best_corners
+
+
 def _detect_corners_yolo(img, w, h) -> list:
-    """YOLO OBB детекция углов экрана. Fallback → центр с отступом."""
+    """Детекция углов. YOLO OBB -> OpenCV -> Fallback 15%."""
     try:
         from ultralytics import YOLO
 
@@ -176,6 +241,13 @@ def _detect_corners_yolo(img, w, h) -> list:
                 return points.tolist()
     except Exception as e:
         print(f"YOLO detection failed: {e}")
+
+    try:
+        cv_corners = _detect_corners_opencv(img, w, h)
+        if cv_corners is not None:
+            return cv_corners
+    except Exception as e:
+        print(f"OpenCV detection failed: {e}")
 
     # Fallback: 15% отступ от краёв (умный дефолт)
     pad_x, pad_y = int(w * 0.15), int(h * 0.15)
