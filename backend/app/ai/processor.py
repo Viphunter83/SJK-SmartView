@@ -105,7 +105,7 @@ async def process_mockup_premium(
         
         # 3. Native SDK Call (Nano Banana 2026 Syntax)
         response = client.models.generate_content(
-            model="gemini-3-pro-image-preview",
+            model="gemini-3.1-flash-image-preview",
             contents=[prompt, bg_part, cr_part],
             config=types.GenerateContentConfig(
                 response_modalities=['IMAGE'],
@@ -116,22 +116,34 @@ async def process_mockup_premium(
         )
 
         # 4. Response Extraction & Validation
-        if not response.candidates:
-            logger.error("Nano Banana Pro: Empty candidates. Safety block suspected.")
+        if getattr(response, "candidates", None) is None:
+            logger.error("Nano Banana: Empty candidates. Safety block suspected.")
             raise ValueError("EMPTY_CANDIDATES")
 
         for part in response.parts:
-            # High-fidelity image extraction from 2026 SDK
-            if hasattr(part, 'as_image'):
-                img = part.as_image()
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='JPEG', quality=95)
-                logger.info("Nano Banana Pro: Image generation successful (2K).")
-                return img_byte_arr.getvalue()
-            
-            if part.inline_data:
-                logger.info("Nano Banana Pro: Image data extracted from inline_data.")
+            # Safest method: grab raw bytes coming from the API directly
+            if getattr(part, 'inline_data', None):
+                logger.info("Nano Banana 2 (Flash): Image generated & extracted successfully from inline_data.")
                 return part.inline_data.data
+            
+            # Fallback if google-genai returns a wrapper object instead of inline_data
+            if hasattr(part, 'as_image') or hasattr(part, 'image'):
+                logger.info("Nano Banana 2 (Flash): Extracted image object, converting to bytes.")
+                img = part.as_image() if hasattr(part, 'as_image') else part.image
+                img_byte_arr = io.BytesIO()
+                
+                try:
+                    # Attempt standard PIL method
+                    img.save(img_byte_arr, format='JPEG', quality=95)
+                except Exception:
+                    try:
+                        # Fallback for wrapper classes that don't accept 'format'
+                        img.save(img_byte_arr)
+                    except Exception as fallback_e:
+                        logger.error(f"Failed to serialize Image object: {fallback_e}")
+                        raise ValueError("UNSUPPORTED_IMAGE_OBJECT")
+                
+                return img_byte_arr.getvalue()
         
         raise ValueError("NO_IMAGE_RETURNED")
 
