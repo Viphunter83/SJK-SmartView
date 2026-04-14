@@ -101,10 +101,7 @@ async def process_mockup_premium(
             model="gemini-3-pro-image-preview",
             contents=[prompt, bg_img, cr_img],
             config=types.GenerateContentConfig(
-                response_modalities=['IMAGE'],
-                image_config=types.ImageConfig(
-                    aspect_ratio="16:9"
-                )
+                response_modalities=['IMAGE']
             )
         )
 
