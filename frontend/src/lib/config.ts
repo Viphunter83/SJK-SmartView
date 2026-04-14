@@ -9,5 +9,6 @@ export const API_ENDPOINTS = {
   GENERATE_MOCKUP: `${API_BASE_URL}/api/v1/mockup/generate`,
   DETECT_CORNERS: `${API_BASE_URL}/api/v1/mockup/detect-corners`,
   DELETE_MOCKUP: (id: string) => `${API_BASE_URL}/api/v1/history/${id}`,
+  DOWNLOAD_PROXY: (url: string) => `${API_BASE_URL}/api/v1/download?url=${encodeURIComponent(url)}`,
 };
 

@@ -49,8 +49,8 @@ export default function LoginPage() {
       
       <Card className="relative w-full max-w-md border-white/5 bg-zinc-900/40 backdrop-blur-2xl shadow-2xl shadow-purple-500/10 transition-all duration-500 hover:border-primary/30">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/40 rotate-12 transition-transform hover:rotate-0">
-            <Box className="h-8 w-8" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl shadow-primary/20 rotate-12 transition-transform hover:rotate-0 overflow-hidden">
+            <img src="/logo.png" className="h-12 w-12 object-contain" alt="SJK SmartView Logo" />
           </div>
           <div className="space-y-2">
             <CardTitle className="text-3xl font-bold tracking-tight text-white">{t("login_title")}</CardTitle>

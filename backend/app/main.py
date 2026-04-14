@@ -19,7 +19,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
+import httpx
 
 from app.schemas import GenerationResponse, LocationInfo, MockupHistoryItem, CornerDetectionResponse, Point
 from app.database import engine, get_db, SessionLocal
@@ -164,8 +165,34 @@ async def get_logs(lines: int = 500):
         return f"Error reading logs: {e}"
 
 
-# ─────────────────────────────────────────────────────────────
-# Locations
+@app.get("/api/v1/download", tags=["Utils"])
+async def download_proxy(url: str):
+    """
+    Proxy for downloading files.
+    Bypasses CORS and forces 'attachment' to trigger download dialog on mobile.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, follow_redirects=True, timeout=10.0)
+            if response.status_code != 200:
+                raise HTTPException(status_code=404, detail="File not found or inaccessible")
+            
+            # Extract filename from URL or default
+            filename = url.split("/")[-1].split("?")[0] or "sjk_mockup.jpg"
+            if not any(filename.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png"]):
+                filename += ".jpg"
+
+            return StreamingResponse(
+                content=response.aiter_bytes(),
+                media_type=response.headers.get("content-type", "image/jpeg"),
+                headers={
+                    "Content-Disposition": f'attachment; filename="{filename}"',
+                    "Access-Control-Expose-Headers": "Content-Disposition"
+                }
+            )
+    except Exception as e:
+        logger.error(f"Download proxy error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 # ─────────────────────────────────────────────────────────────
 @app.get("/api/v1/locations", response_model=List[LocationInfo], tags=["Locations"])
 async def get_locations(db: Session = Depends(get_db)):

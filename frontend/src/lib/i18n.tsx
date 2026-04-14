@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Language = 'vi' | 'en';
+type Language = 'vi' | 'en' | 'ru';
 
 type Translations = {
   [key: string]: string;
@@ -17,6 +17,7 @@ const dictionaries: Record<Language, Translations> = {
     manager: "Quản lý:",
     logout: "Đăng xuất",
     logging_out: "Đang đăng xuất...",
+    pwa_install: "Cài đặt Ứng dụng",
     cancel: "Hủy",
     next: "Tiếp tục",
     back: "Quay lại",
@@ -103,6 +104,13 @@ const dictionaries: Record<Language, Translations> = {
     stage_saving: "Đang lưu và hoàn thiện...",
     stage_completed: "Đã hoàn thành!",
     stage_failed: "Lỗi xử lý",
+    creator_base: "Vị trí tại",
+    creator_ready: "Mockup đã sẵn sàng!",
+    creator_download: "Tải xuống",
+    creator_retry: "Thử lại",
+    creator_close: "Đóng",
+    creator_gen_error: "Lỗi tạo hình",
+    creator_try_again: "Thử lại ngay",
     ratio: "Tỷ lệ"
   },
   en: {
@@ -113,6 +121,7 @@ const dictionaries: Record<Language, Translations> = {
     manager: "Manager:",
     logout: "Logout",
     logging_out: "Logging out...",
+    pwa_install: "Install App",
     cancel: "Cancel",
     next: "Next",
     back: "Back",
@@ -199,7 +208,118 @@ const dictionaries: Record<Language, Translations> = {
     stage_saving: "Finalizing and saving...",
     stage_completed: "Generation complete!",
     stage_failed: "Processing failed",
+    creator_base: "Base screen:",
+    creator_ready: "Mockup is ready!",
+    creator_download: "Download",
+    creator_retry: "Try Again",
+    creator_close: "Close",
+    creator_gen_error: "Generation Error",
+    creator_try_again: "Try Again",
     ratio: "Ratio"
+  },
+  ru: {
+    // Common
+    loading: "Загрузка...",
+    error: "Ошибка",
+    success: "Успешно",
+    manager: "Менеджер:",
+    logout: "Выйти",
+    logging_out: "Выход...",
+    pwa_install: "Установить приложение",
+    cancel: "Отмена",
+    next: "Далее",
+    back: "Назад",
+    delete: "Удалить",
+
+    // Auth
+    login_title: "SJK SmartView",
+    login_subtitle: "Вход в систему управления рекламой",
+    email_label: "EMAIL",
+    email_placeholder: "name@shojiki.vn",
+    password_label: "ПАРОЛЬ",
+    login_button: "Войти в систему",
+    login_loading: "Авторизация...",
+    login_corp_access: "Корпоративный доступ Shojiki",
+    err_invalid_cred: "Неверный email или пароль",
+    err_too_many_req: "Слишком много попыток. Попробуйте позже",
+    err_network: "Ошибка входа. Проверьте соединение",
+
+    // Sidebar
+    screen_catalog: "Каталог экранов",
+    street_upload: "Загрузка с улицы",
+    mockup_history: "История мокапов",
+    location_map: "Карта локаций",
+
+    // Catalog
+    catalog_title: "Выберите билборд",
+    search_placeholder: "Поиск по адресу или названию...",
+    all_locations: "Все локации",
+    screens: "экранов",
+    select_banner: "Выбрать этот баннер",
+    format: "Формат:",
+    no_locations_found: "Локации не найдены",
+    try_another_search: "Попробуйте другой запрос",
+
+    // Map
+    map_select_location: "Выбрать этот экран",
+
+    // Mockup History
+    history_title: "История мокапов",
+    status_completed: "Завершено",
+    status_failed: "Ошибка",
+    status_processing: "В процессе",
+    location: "Локация",
+    processing_time: "Время обработки",
+    sec: "сек",
+    date: "Дата",
+    delete_confirm: "Вы уверены, что хотите удалить этот мокап?",
+    download_result: "Скачать результат",
+    download_primary: "Основной",
+    download_creative: "Скачать креатив",
+    no_history: "Мокапы еще не создавались",
+
+    // Mockup Creator
+    creator_title: "Создание мокапа",
+    step_1: "Фон",
+    step_2: "Углы",
+    step_3: "Креатив",
+    step_4: "Готово",
+    upload_drag_bg: "Перетащите фото фона",
+    or_click: "или нажмите для выбора",
+    bg_custom_desc: "Фото улицы с экраном, куда будет вставлен результат.",
+    bg_catalog_desc: "Фон предварительно выбран из каталога.",
+    bg_uploaded: "Фон загружен",
+    change_photo: "Изменить фото",
+    auto_detect_corners: "Автодетекция углов",
+    move_corners_desc: "Переместите синие точки на 4 угла экрана. Результат будет адаптирован автоматически.",
+    upload_drag_creative: "Перетащите ваш креатив (рекламу)",
+    creative_desc: "Это изображение будет вставлено в выбранную область экрана.",
+    creative_uploaded: "Креатив загружен",
+    render_button: "Создать мокап",
+    creator_generate: "Умная AI Генерация",
+    rendering: "Обработка...",
+    generating_ai: "AI рендеринг...",
+    generating_cloud: "Подключение к Cloud GPU...",
+    download_mockup: "Скачать мокап",
+    start_new: "Начать новый",
+    err_bg_required: "Пожалуйста, предоставьте фото фона",
+    err_creative_required: "Пожалуйста, предоставьте креатив",
+    err_no_bg: "Фото фона не найдено",
+    no_bg_image: "Фото фона не найдено",
+    creator_saving: "Сохранение результата...",
+    stage_uploading: "Загрузка ассетов...",
+    stage_rendering: "Рендеринг изображения...",
+    stage_saving: "Финализация и сохранение...",
+    stage_completed: "Генерация завершена!",
+    stage_failed: "Ошибка обработки",
+    creator_base: "Локация:",
+    creator_ready: "Мокап готов!",
+    creator_download: "Скачать",
+    creator_retry: "Ещё раз",
+    creator_close: "Закрыть",
+    creator_gen_error: "Ошибка генерации",
+    creator_try_again: "Попробовать снова",
+    ratio: "Соотношение"
   }
 };
 
@@ -212,13 +332,13 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('vi');
+  const [language, setLanguageState] = useState<Language>('vi'); // Primary for Vietnam
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     const savedLang = localStorage.getItem('sjk-lang') as Language;
-    if (savedLang && (savedLang === 'vi' || savedLang === 'en')) {
+    if (savedLang && (savedLang === 'vi' || savedLang === 'en' || savedLang === 'ru')) {
       setLanguageState(savedLang);
     }
   }, []);
@@ -233,9 +353,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return dictionaries[language][key] || dictionaries['en'][key] || key;
   };
 
-  // Prevent hydration mismatch by avoiding rendering until client mounts
-  // Although context provider doesn't render raw DOM, it's safer.
-  
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
@@ -250,3 +367,4 @@ export function useLanguage() {
   }
   return context;
 }
+

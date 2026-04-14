@@ -1,8 +1,4 @@
-/**
- * Унифицированная утилита для работы с URL изображений.
- * Исключает дублирование getFullImageUrl в 3 компонентах.
- */
-import { API_BASE_URL } from "@/lib/config";
+import { API_BASE_URL, API_ENDPOINTS } from "@/lib/config";
 
 /**
  * Преобразует относительный URL в абсолютный.
@@ -17,10 +13,6 @@ export function getFullImageUrl(url: string | null | undefined): string {
   return `${API_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
-/**
- * Скачать файл по URL с заданным именем.
- * Использует fetch и Blob для преодоления проблемы кросс-доменного (CORS) открытия в новой вкладке.
- */
 /**
  * Скачать или поделиться файлом.
  * Использует fetch+Blob для скачивания или Web Share API для мобильных устройств.
@@ -69,13 +61,28 @@ export async function downloadFile(url: string, filename: string): Promise<void>
       window.URL.revokeObjectURL(objectUrl);
     }
   } catch (error) {
-    console.error("Download failed, using final fallback:", error);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    console.error("Download failed, using PROXY fallback:", error);
+    
+    // 3. Последний надежный способ: прокси через наш бэкенд
+    // Это гарантирует принудительную загрузку даже на iOS/Android Chrome
+    if (url.startsWith("http")) {
+      const proxyUrl = API_ENDPOINTS.DOWNLOAD_PROXY(url);
+      const a = document.createElement("a");
+      a.href = proxyUrl;
+      // Мы не ставим target="_blank" здесь, чтобы не открывать пустую вкладку, 
+      // так как сервер вернет Content-Disposition: attachment
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // Совсем крайний случай (почти невозможен для http)
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   }
 }
+

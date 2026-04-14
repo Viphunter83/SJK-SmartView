@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Monitor, Map, History, Plus, Box, LogOut, Loader2 } from "lucide-react"
+import { Monitor, Map, History, Plus, Box, LogOut, Loader2, Smartphone } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -38,8 +38,8 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/50 backdrop-blur-xl">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3 px-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-            <Box className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 border border-white/10 shadow-lg shadow-primary/20 overflow-hidden">
+            <img src="/logo.png" className="h-7 w-7 object-contain" alt="Logo" />
           </div>
           <span className="text-xl font-bold tracking-tight text-foreground">SJK SmartView</span>
         </div>
@@ -87,6 +87,18 @@ export function AppSidebar({ currentTab, onTabChange, onOpenCreator }: AppSideba
             >
               <Map className="h-5 w-5" />
               <span>{t("location_map")}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip={t("pwa_install")}
+              asChild
+            >
+              <a href="https://github.com/Viphunter83/SJK-SmartView/blob/main/docs/user/PWA_INSTALLATION_GUIDE.md" target="_blank" rel="noopener noreferrer">
+                <Smartphone className="h-5 w-5" />
+                <span>{t("pwa_install")}</span>
+              </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

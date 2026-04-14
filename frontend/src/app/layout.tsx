@@ -24,6 +24,10 @@ export const metadata: Metadata = {
     title: "SJK SmartView | AI Mockup Studio",
     description: "Professional DOOH visualization for Shojiki Group Vietnam",
   },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -40,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className="dark h-full antialiased">
+    <html lang="vi" className="dark h-full antialiased">
       <body className={`${inter.className} min-h-full bg-background`}>
         <AuthProvider>
           <LanguageProvider>
