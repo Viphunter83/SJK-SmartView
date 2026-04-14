@@ -67,13 +67,19 @@ async def process_mockup_premium(
     try:
         client = genai.Client(api_key=api_key)
         
-        # 1. Payload Optimization (Balance between quality and API limits)
-        bg_optimized = _resize_image_for_api(background_bytes, max_dim=3072)
-        cr_optimized = _resize_image_for_api(creative_bytes, max_dim=2048)
-        
-        # Convert raw bytes to PIL Image to satisfy google-genai SDK validation requirements
-        bg_img = Image.open(io.BytesIO(bg_optimized))
-        cr_img = Image.open(io.BytesIO(cr_optimized))
+        # 1. Robust Image Parsing & Normalization (Convert to strictly JPEG to prevent 500 Internal Server Error)
+        # Google GenAI backend strictly expects standard jpeg/png. Alpha channels (RGBA) often cause 500 errors.
+        bg_pil = Image.open(io.BytesIO(background_bytes)).convert("RGB")
+        bg_pil.thumbnail((3072, 3072), Image.Resampling.LANCZOS)
+        bg_bytes_io = io.BytesIO()
+        bg_pil.save(bg_bytes_io, format="JPEG", quality=90)
+        bg_part = types.Part.from_bytes(data=bg_bytes_io.getvalue(), mime_type="image/jpeg")
+
+        cr_pil = Image.open(io.BytesIO(creative_bytes)).convert("RGB")
+        cr_pil.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
+        cr_bytes_io = io.BytesIO()
+        cr_pil.save(cr_bytes_io, format="JPEG", quality=90)
+        cr_part = types.Part.from_bytes(data=cr_bytes_io.getvalue(), mime_type="image/jpeg")
 
         # 2. SCHEMA v4.3 Prompt Engineering (Narrative Approach)
         # Optimized for Nano Banana Pro's advanced spatial reasoning.
@@ -99,7 +105,7 @@ async def process_mockup_premium(
         # 3. Native SDK Call (Nano Banana 2026 Syntax)
         response = client.models.generate_content(
             model="gemini-3-pro-image-preview",
-            contents=[prompt, bg_img, cr_img],
+            contents=[prompt, bg_part, cr_part],
             config=types.GenerateContentConfig(
                 response_modalities=['IMAGE']
             )
