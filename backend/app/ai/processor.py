@@ -102,13 +102,11 @@ async def process_mockup_premium(
             contents=[prompt, bg_img, cr_img],
             config=types.GenerateContentConfig(
                 response_modalities=['IMAGE'],
-                thinking_config=types.ThinkingConfig(
-                    thinking_level="High",
-                    include_thoughts=True
-                ),
+                # Removed experimental thinking_config which caused Pydantic validation errors
                 image_config=types.ImageConfig(
                     aspect_ratio="16:9",
-                    image_size="2K"
+                    # Image size mapping for the SDK
+                    number_of_images=1
                 )
             )
         )
