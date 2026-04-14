@@ -70,14 +70,16 @@ async def process_mockup_premium(
         # 1. Robust Image Parsing & Normalization (Convert to strictly JPEG to prevent 500 Internal Server Error)
         # Google GenAI backend strictly expects standard jpeg/png. Alpha channels (RGBA) often cause 500 errors.
         bg_pil = Image.open(io.BytesIO(background_bytes)).convert("RGB")
-        # Reduced max_dim to 1536 to prevent backend Out-Of-Memory 500 Errors
-        bg_pil.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
+        # Ensure 1024 resolution for stable AI generation
+        # (Beta API drops complex images >1024 with a 500 Server Error)
+        max_dim = 1024
+        bg_pil.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
         bg_bytes_io = io.BytesIO()
         bg_pil.save(bg_bytes_io, format="JPEG", quality=85)
         bg_part = types.Part.from_bytes(data=bg_bytes_io.getvalue(), mime_type="image/jpeg")
 
         cr_pil = Image.open(io.BytesIO(creative_bytes)).convert("RGB")
-        cr_pil.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
+        cr_pil.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
         cr_bytes_io = io.BytesIO()
         cr_pil.save(cr_bytes_io, format="JPEG", quality=85)
         cr_part = types.Part.from_bytes(data=cr_bytes_io.getvalue(), mime_type="image/jpeg")
@@ -94,11 +96,9 @@ async def process_mockup_premium(
 
         prompt = (
             "A high-end professional commercial photograph for an advertising campaign. "
-            "Identify the main digital screen or billboard billboard in Image 1 and integrate the creative asset from Image 2 onto it. "
-            f"{spatial_context} "
-            "The integration must be seamless, with reflections, shadows, and ambient lighting matching the environment perfectly. "
-            "Maintain occlusion integrity: people, vehicles, or structures in the foreground must remain in front of the screen. "
-            "Output the final result in 2K high-definition resolution."
+            "Identify the main digital screen or billboard in Image 1 and integrate the creative asset from Image 2 onto it. "
+            "The final image should look photorealistic, with correct perspective, lighting, shadows, and reflections. "
+            "Ensure that any foreground objects (like cars, trees, people, or light poles) that are in front of the billboard correctly occlude the creative asset."
         )
 
         logger.info("Calling Nano Banana Pro (Gemini 3 Pro Image Preview) [2K Mode]...")
