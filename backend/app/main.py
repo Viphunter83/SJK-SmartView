@@ -11,7 +11,7 @@ import time
 import uuid
 import base64
 import logging
-from typing import List, Optional
+from typing import List, Optional, Any
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
@@ -267,6 +267,7 @@ async def generate_mockup(
     db: Session = Depends(get_db)
 ):
     start_time = time.time()
+    processing_time = 0.0
     
     # Жесткий парсинг булевого значения
     is_premium_active = str(use_premium).lower() in ("true", "1", "t", "on", "yes")
