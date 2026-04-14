@@ -70,15 +70,16 @@ async def process_mockup_premium(
         # 1. Robust Image Parsing & Normalization (Convert to strictly JPEG to prevent 500 Internal Server Error)
         # Google GenAI backend strictly expects standard jpeg/png. Alpha channels (RGBA) often cause 500 errors.
         bg_pil = Image.open(io.BytesIO(background_bytes)).convert("RGB")
-        bg_pil.thumbnail((3072, 3072), Image.Resampling.LANCZOS)
+        # Reduced max_dim to 1536 to prevent backend Out-Of-Memory 500 Errors
+        bg_pil.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
         bg_bytes_io = io.BytesIO()
-        bg_pil.save(bg_bytes_io, format="JPEG", quality=90)
+        bg_pil.save(bg_bytes_io, format="JPEG", quality=85)
         bg_part = types.Part.from_bytes(data=bg_bytes_io.getvalue(), mime_type="image/jpeg")
 
         cr_pil = Image.open(io.BytesIO(creative_bytes)).convert("RGB")
-        cr_pil.thumbnail((2048, 2048), Image.Resampling.LANCZOS)
+        cr_pil.thumbnail((1536, 1536), Image.Resampling.LANCZOS)
         cr_bytes_io = io.BytesIO()
-        cr_pil.save(cr_bytes_io, format="JPEG", quality=90)
+        cr_pil.save(cr_bytes_io, format="JPEG", quality=85)
         cr_part = types.Part.from_bytes(data=cr_bytes_io.getvalue(), mime_type="image/jpeg")
 
         # 2. SCHEMA v4.3 Prompt Engineering (Narrative Approach)
@@ -107,7 +108,10 @@ async def process_mockup_premium(
             model="gemini-3-pro-image-preview",
             contents=[prompt, bg_part, cr_part],
             config=types.GenerateContentConfig(
-                response_modalities=['IMAGE']
+                response_modalities=['IMAGE'],
+                image_config=types.ImageConfig(
+                    aspect_ratio="16:9"
+                )
             )
         )
 
