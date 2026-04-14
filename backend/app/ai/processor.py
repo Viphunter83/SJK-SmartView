@@ -55,94 +55,86 @@ async def process_mockup_premium(
     corners: list = None,
 ) -> bytes:
     """
-    Премиум-генерация через Gemini 3 Pro Image.
+    Premium generation via Gemini 3 Pro Image (SCHEMA v4.0).
+    Uses Native AI mapping with 'Flexible Anchors' and 'Thinking: HIGH'.
     """
-    # 1. Готовим "черновик" через OpenCV
-    bg = _decode_image(background_bytes)
-    cr = _decode_image(creative_bytes)
-    h, w = bg.shape[:2]
-    
-    if not corners:
-        corners = _detect_corners_opencv(bg, w, h)
-    else:
-        corners = _scale_corners(corners, w, h)
-        
-    corners_sorted = _sort_corners(np.array(corners, dtype="float32"))
-    src_pts = np.array([[0, 0], [cr.shape[1], 0], [cr.shape[1], cr.shape[0]], [0, cr.shape[0]]], dtype="float32")
-    M = cv2.getPerspectiveTransform(src_pts, corners_sorted)
-    warped = cv2.warpPerspective(cr, M, (w, h))
-    
-    # Базовое наложение
-    draft = _blend_images_advanced(bg, warped, corners_sorted)
-
-    # 2. Магия Gemini для гармонизации
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         logger.warning("GEMINI_API_KEY missing - returning standard blend")
-        return cv2.imencode(".jpg", draft, [int(cv2.IMWRITE_JPEG_QUALITY), 95])[1].tobytes()
+        # For security fallback, we still need a draft if API key is missing
+        return process_mockup_standard(background_bytes, creative_bytes, corners)
 
     try:
         client = genai.Client(api_key=api_key)
         
-        # 3. Payload optimization (Downscaling for API stability)
-        # Gemini handles large images, but two 4K+ images can exceed limits or timeout
-        bg_optimized = _resize_image_for_api(background_bytes)
-        cr_optimized = _resize_image_for_api(creative_bytes)
+        # 1. Payload Optimization (Balance between quality and API limits)
+        bg_optimized = _resize_image_for_api(background_bytes, max_dim=3072)
+        cr_optimized = _resize_image_for_api(creative_bytes, max_dim=2048)
 
-        # SCHEMA-driven Professional Prompt
-        # Triggers: Thinking Mode, Geometric Consistency, Lighting Harmonization
+        # 2. SCHEMA v4.0 Prompt Engineering (Systemic Approach)
+        # We explicitly label the images and provide spatial triggers.
+        
+        spatial_hint = ""
+        if corners:
+            spatial_hint = (
+                f"\nSpatial Hint: The target display surface is approximately located at these coordinates: {corners}. "
+                "Use these as anchor points, but verify and refine the exact pixel-perfect edges and stereometry yourself."
+            )
+
         prompt = (
-            "Style: Ultra-realistic high-end commercial advertising photography.\n"
-            "Reference:\n"
-            "  Image 1 (Background): Original environmental photograph.\n"
-            "  Image 2 (Asset): Digital advertisement creative to be placed.\n"
-            "Composition: Automatically identify the primary screen or advertisement surface in Image 1. "
-            "Warp and map Image 2 onto this surface with mathematical precision.\n"
-            "Thinking:\n"
-            "  Enable: Multi-stage refinement.\n"
-            "  Objective: Achieve 100% geometric consistency with the identified surface's perspective, "
-            "curvature, and lens distortion.\n"
-            "  Task: Apply professional Lighting Harmonization. Ensure the asset reflects ambient environment glow, "
-            "mimics screen texture/pixel grain, and casts realistic micro-shadows on the bezels.\n"
-            "Technical: Preserve original image noise grain; Output resolution 4K equivalents."
+            "[SCHEMA v4.0: High-Fidelity DOOH Integration]\n"
+            "CONTEXT: Professional advertising mockup for Shojiki Group Vietnam.\n"
+            "TASK: Integrat Image 2 (Asset) into the high-priority display surface found in Image 1 (Environment).\n"
+            f"{spatial_hint}\n"
+            "COGNITIVE STEPS:\n"
+            "1. Scene Analysis: Identify the primary digital screen, billboard, or LED surface.\n"
+            "2. Geometric Mapping: Warp Image 2 to fit the surface perfectly, respecting perspective and lens distortion.\n"
+            "3. Photorealistic Blending: Inherit ambient lighting, reflection, and grain from Image 1.\n"
+            "4. Occlusion Handling: If any foreground objects (tree, lamp, person) cover the screen, "
+            "ensure Image 2 is mapped BEHIND them.\n"
+            "OUTPUT: Return ONLY the final integrated image in high resolution."
         )
 
-        logger.info(f"Calling {GEMINI_MODEL_ID} with SCHEMA-native triggers...")
+        logger.info(f"Calling {GEMINI_MODEL_ID} with Thinking: HIGH and SCHEMA v4.0...")
         
-        # Send Multi-image request: [BG, Creative, Prompt]
+        # 3. Native SDK Call with Thinking Budget
         response = client.models.generate_content(
             model=GEMINI_MODEL_ID,
             contents=[
-                types.Part.from_bytes(data=bg_optimized, mime_type='image/jpeg'), # Image 1: BG
-                types.Part.from_bytes(data=cr_optimized, mime_type='image/jpeg'), # Image 2: Asset
+                types.Part.from_bytes(data=bg_optimized, mime_type='image/jpeg'),
+                types.Part.from_bytes(data=cr_optimized, mime_type='image/jpeg'),
                 prompt
-            ]
+            ],
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(
+                    thinking_level=types.ThinkingLevel.HIGH
+                ),
+                response_modalities=['IMAGE']
+            )
         )
 
-        # 4. Robust Safety & Response Handling
-        # Check if model returned a valid candidate with content
+        # 4. Critical Response Handling
         if not response.candidates or len(response.candidates) == 0:
-            logger.warning("Gemini AI blocked the request (Safety Filters). Falling back to draft.")
-            return _get_draft_bytes(draft)
+            logger.error("Gemini AI blocked the request (No candidates). Check Safety Filters.")
+            raise ValueError("AI_SAFETY_BLOCK: The request was blocked by safety filters.")
 
         candidate = response.candidates[0]
-        if not candidate.content or not candidate.content.parts:
-            logger.warning(f"Gemini AI returned empty content/blocked. Reason: {candidate.finish_reason}")
-            return _get_draft_bytes(draft)
+        if candidate.finish_reason != types.FinishReason.STOP and candidate.finish_reason != types.FinishReason.MAX_TOKENS:
+            logger.error(f"Gemini integration failed. Finish Reason: {candidate.finish_reason}")
+            raise ValueError(f"AI_PIPELINE_ERROR: {candidate.finish_reason}")
 
-        # Extract image from response parts
         for part in candidate.content.parts:
             if part.inline_data:
-                logger.info("Premium SCHEMA harmonization successful. Native AI-integrated image received.")
+                logger.info("SCHEMA v4.0 Premium harmonization successful.")
                 return part.inline_data.data
         
-        # Fallback to hybrid approach if native failing or not returning image
-        logger.warning("SCHEMA native did not return image. Falling back to draft.")
-        return _get_draft_bytes(draft)
+        raise ValueError("AI_PART_ERROR: Model did not return image data.")
 
     except Exception as e:
-        logger.error(f"Gemini SCHEMA Critical Error: {e}. Falling back to OpenCV draft.")
-        return _get_draft_bytes(draft)
+        logger.error(f"Gemini SCHEMA v4.0 Critical Error: {e}")
+        # Only fallback if it's a connectivity/API error, not a logic error.
+        # But for user experience, returning standard blend as last resort.
+        return process_mockup_standard(background_bytes, creative_bytes, corners)
 
 def _get_draft_bytes(draft):
     """Encodes OpenCV draft to bytes for fallback."""

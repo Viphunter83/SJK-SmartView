@@ -53,9 +53,9 @@ async def lifespan(app: FastAPI):
     # Shutdown logic
 
 # ─────────────────────────────────────────────────────────────
-# AI Pipeline (Local OpenCV + Gemini API)
+# AI Pipeline (Gemini 3 Pro Native)
 # ─────────────────────────────────────────────────────────────
-print("AI Pipeline: Local Engine Active (Gemini 3 Pro Image SCHEMA Ready) ✓")
+print("AI Pipeline: Gemini 3 Pro Native Active (SCHEMA v4.0 Ready) ✓")
 
 # ─────────────────────────────────────────────────────────────
 # CORS — читаем из env var
@@ -110,8 +110,8 @@ async def api_health_check():
     return {
         "status": "healthy",
         "ai_available": True,
-        "ai_model": "Gemini 3 Pro Image (Nano Banana Pro)",
-        "corner_detection": "opencv_multi_strategy",
+        "ai_model": "Gemini 3 Pro Image (Native SCHEMA v4.0)",
+        "engine": "nano_banana_pro",
     }
 
 @app.post("/api/v1/admin/reseed", tags=["Admin"])
@@ -334,14 +334,14 @@ async def generate_mockup(
         status = "completed"
         final_result_url = result_url  # Клиентский canvas результат (Вариант Б)
 
-        # Вариант А: Стационарный рендеринг (Local Engine)
+        # Вариант А: Стационарный рендеринг (Native AI Engine)
         if bg_bytes and not result_url:
             try:
                 if use_premium:
-                    logger.info("Using Premium AI: Gemini 3 Pro Image (SCHEMA)")
+                    logger.info("Using Premium AI: Gemini 3 Pro Native (Thinking: HIGH)")
                     result_bytes = await processor.process_mockup_premium(bg_bytes, cr_bytes, corners)
                 else:
-                    logger.info("Using Standard AI: OpenCV Perspective Warp")
+                    logger.info("Using Standard AI: OpenCV Perspective Local")
                     result_bytes = processor.process_mockup_standard(bg_bytes, cr_bytes, corners)
 
                 final_result_url = await storage_service.upload_file(

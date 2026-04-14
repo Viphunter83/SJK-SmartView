@@ -1,6 +1,4 @@
-# SCHEMA Expert Methodology: SJK SmartView AI Pipeline
-
-Этот документ описывает методологию **SCHEMA** (*Structured Components for Harmonized Engineered Modular Architecture*), которая используется для управления моделью **Gemini 3 Pro Image (Nano Banana Pro)** в проекте SJK SmartView.
+Этот документ описывает методологию **SCHEMA v4.0** (*Structured Components for Harmonized Engineered Modular Architecture*), которая используется для управления моделью **Gemini 3 Pro Image (Nano Banana Pro)** в проекте SJK SmartView.
 
 ## 1. Концепция
 SCHEMA — это не просто промпт, а модульная структура, имитирующая системное мышление инженера. Она переводит модель из режима «творческого рисования» в режим «прецизионной вставки объекта с учетом физики мира».
@@ -8,9 +6,9 @@ SCHEMA — это не просто промпт, а модульная стру
 ## 2. Глобальные триггеры
 Для активации возможностей Gemini 3 используются следующие управляющие сигналы:
 
-- **Thinking: Enable**: Активирует многошаговый внутренний процесс рассуждения. Модель сначала анализирует геометрию, а затем выполняет рендеринг.
-- **Geometric Consistency**: Предписывает 100% сохранение линий и углов оригинальной поверхности.
-- **Lighting Harmonization**: Модуль анализа освещения. Модель анализирует источники света на фото фона и накладывает соответствующие блики на рекламный баннер.
+- **Thinking: HIGH**: Активирует глубокий многошаговый процесс рассуждения. Модель не просто рисует, а строит пространственную модель сцены.
+- **Flexible Anchors (Гибкие Якоря)**: Новая концепция v4.0. Мы передаем ИИ примерные координаты (hints), но позволяем ему самостоятельно определять финальные границы для 100% точности.
+- **Occlusion Mastery**: Способность модели корректно обрабатывать препятствия перед экраном (деревья, люди, столбы) без масок.
 
 ## 3. Процесс обработки (Multi-stage Refinement)
 1. **Input Part 1 (Background)**: Фото реальной локации Shojiki.
@@ -21,17 +19,16 @@ SCHEMA — это не просто промпт, а модульная стру
    - `Harmonization`: Бесшовное вписывание с учетом зернистости, теней и текстуры экрана.
 
 ## 4. SCHEMA Prompt Structure
-Унифицированный промпт состоит из следующих блоков:
 ```text
-[SCHEMA v3.0]
-[CONTEXT: DOOH Advertising Professional Integration]
-[GOAL: Seamlessly integrate Image 2 into the detected display surface of Image 1]
-[TRIGGERS: Thinking, Geometric Consistency, High-Fidelity Harmonization]
-[REFINEMENT: 
- - Maintain 100% screen geometry.
- - Inherit ambient lighting from Image 1.
- - Apply subtle micro-shadows on bezels.
-]
+[SCHEMA v4.0: High-Fidelity DOOH Integration]
+CONTEXT: Professional advertising mockup for Shojiki Group Vietnam.
+TASK: Integrate Image 2 (Asset) into the high-priority display surface found in Image 1 (Environment).
+
+COGNITIVE STEPS:
+1. Scene Analysis: Identify primary digital screen/LED surface.
+2. Geometric Mapping: Warp Image 2 with perfect perspective.
+3. Photorealistic Blending: Inherit lighting, grain, and reflections.
+4. Occlusion Handling: Ensure layering behind foreground objects.
 ```
 
 ## 5. Преимущества перед классическим CV (OpenCV/YOLO)

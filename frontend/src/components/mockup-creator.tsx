@@ -66,7 +66,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
   const [stage, setStage] = React.useState<ProcessingStage>('idle')
   const [result, setResult] = React.useState<string | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
-  const [usedModal, setUsedModal] = React.useState(false)
+  const [resultIsPremium, setResultIsPremium] = React.useState(false)
   const [isDetecting, setIsDetecting] = React.useState(false)
   const [usePremium, setUsePremium] = React.useState(false)
   const [points, setPoints] = React.useState<Point[]>(
@@ -151,7 +151,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
         ? location.screen_geometry
         : points
 
-      // ── Шаг 1: Попытка через Backend → Modal GPU (primary) ────
+      // ── Step 1: Attempt via Backend → Gemini Native AI (primary) ────
       setStage('rendering')
 
       // Для бэкенда нам нужен файл фона (не URL)
@@ -173,7 +173,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       }
 
       let resultUrl: string | null = null
-      let usedModal = false
+      let isPremium = false
 
       if (bgFile) {
         try {
@@ -201,24 +201,25 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
             const data = await response.json()
             if (data.status === "completed" && data.mockup_url) {
               resultUrl = data.mockup_url
-              setUsedModal(true)
+              setResultIsPremium(usePremium)
+              isPremium = usePremium
             }
           }
         } catch (modalError) {
-          console.warn("Backend/Modal failed, falling back to Canvas:", modalError)
+          console.warn("Backend/Gemini failed, falling back to Canvas:", modalError)
         }
       }
 
-      // ── Шаг 2: Canvas fallback (если Modal не сработал) ───────
+      // ── Step 2: Canvas fallback (если Backend не сработал) ───────
       if (!resultUrl) {
         console.log("Using Canvas renderer as fallback")
-        const { renderMockup, dataUrlToBlob } = await import("@/lib/canvas-renderer")
+        const { renderMockup } = await import("@/lib/canvas-renderer")
         const dataUrl = await renderMockup(backgroundSrc, creativePreview, renderCorners, {
           opacity: 1.0,
           quality: 0.92,
         })
 
-        // Пытаемся сохранить через бэкенд (без bg — только история)
+        // Пытаемся сохранить через бэкенд (для истории)
         try {
           const formData = new FormData()
           formData.append("creative", creativeFile)
@@ -244,14 +245,14 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       // Cleanup
       if (backgroundFile) URL.revokeObjectURL(backgroundSrc)
 
-      // ── Шаг 3: Завершение ─────────────────────────────────────
+      // ── Step 3: Completion ─────────────────────────────────────
       setStage('saving')
       await new Promise(r => setTimeout(r, 400)) // Brief UX pause
 
       setResult(resultUrl)
       setStage('completed')
 
-      console.log(`Mockup generated via: ${resultUrl ? "Modal GPU 🚀" : "Canvas fallback"}`)
+      console.log(`Mockup generated via: ${resultUrl ? (isPremium ? "Gemini Native 🚀" : "Local Engine") : "Canvas fallback"}`)
 
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
@@ -276,7 +277,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
     setResult(null)
     setStage('idle')
     setErrorMessage(null)
-    setUsedModal(false)
+    setResultIsPremium(false)
   }
 
   const isProcessing = stage !== 'idle' && stage !== 'completed' && stage !== 'failed'
@@ -428,7 +429,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stage === 'rendering' ? 'Modal GPU • YOLO OBB • perspective warp' : ''}
+                  {stage === 'rendering' ? (usePremium ? 'Gemini 3 Pro • SCHEMA v4.0 • Thinking: HIGH' : 'OpenCV Local Warp') : ''}
                   {stage === 'saving' ? t("creator_saving") : ''}
                 </p>
               </div>
@@ -467,7 +468,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                     <div>
                       <p className="font-bold text-sm">{t("creator_ready")}</p>
                       <p className="text-[10px] text-gray-400">
-                        {usedModal ? "Modal GPU Processed" : "Client Canvas Fallback"}
+                        {resultIsPremium ? "Gemini 3 Pro Native AI" : "SJK Local Engine Client"}
                       </p>
                     </div>
                   </div>
@@ -507,7 +508,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
                 )}
               >
                 <Sparkles className={cn("h-4 w-4", usePremium ? "animate-pulse" : "")} />
-                {usePremium ? "Premium AI Active" : "Enable Premium AI"}
+                {usePremium ? "Premium Gemini Native Active" : "Enable Premium Gemini"}
               </Button>
               <Button
                 disabled={!creativeFile || (!location && !backgroundFile)}
