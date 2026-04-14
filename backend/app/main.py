@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from fastapi.responses import PlainTextResponse
 
 from app.schemas import GenerationResponse, LocationInfo, MockupHistoryItem, CornerDetectionResponse, Point
 from app.database import engine, get_db, SessionLocal
@@ -28,8 +29,15 @@ from app.seed_vietnam import seed_vietnam
 from app.ai import processor # Локальный AI-процессор (OpenCV + Gemini)
 
 # Setup logging
-logging.basicConfig(level=logging.INFO)
+log_file = "backend_logs_8001.txt"
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+# Add file handler to root logger to capture everything
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logging.getLogger().addHandler(file_handler)
 
 # ─────────────────────────────────────────────────────────────
 # Lifespan & Startup
@@ -141,6 +149,19 @@ async def admin_reseed(db: Session = Depends(get_db)):
         return {"status": "success", "message": f"Re-seeded {count} locations with corrected geometry"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/admin/logs", tags=["Admin"], dependencies=[Depends(api_key_auth)], response_class=PlainTextResponse)
+async def get_logs(lines: int = 500):
+    """View recent backend logs directly without needing Railway dashboard."""
+    import os
+    if not os.path.exists(log_file):
+        return "Log file not found."
+    try:
+        with open(log_file, "r") as f:
+            log_lines = f.readlines()
+        return "".join(log_lines[-lines:])
+    except Exception as e:
+        return f"Error reading logs: {e}"
 
 
 # ─────────────────────────────────────────────────────────────

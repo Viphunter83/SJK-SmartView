@@ -70,6 +70,10 @@ async def process_mockup_premium(
         # 1. Payload Optimization (Balance between quality and API limits)
         bg_optimized = _resize_image_for_api(background_bytes, max_dim=3072)
         cr_optimized = _resize_image_for_api(creative_bytes, max_dim=2048)
+        
+        # Convert raw bytes to PIL Image to satisfy google-genai SDK validation requirements
+        bg_img = Image.open(io.BytesIO(bg_optimized))
+        cr_img = Image.open(io.BytesIO(cr_optimized))
 
         # 2. SCHEMA v4.3 Prompt Engineering (Narrative Approach)
         # Optimized for Nano Banana Pro's advanced spatial reasoning.
@@ -95,7 +99,7 @@ async def process_mockup_premium(
         # 3. Native SDK Call (Nano Banana 2026 Syntax)
         response = client.models.generate_content(
             model="gemini-3-pro-image-preview",
-            contents=[prompt, bg_optimized, cr_optimized],
+            contents=[prompt, bg_img, cr_img],
             config=types.GenerateContentConfig(
                 response_modalities=['IMAGE'],
                 thinking_config=types.ThinkingConfig(
