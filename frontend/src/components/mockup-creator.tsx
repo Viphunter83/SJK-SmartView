@@ -296,22 +296,25 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
 
   return (
     <Dialog open={true} onOpenChange={(open) => { if (!open) { reset(); onClose() } }}>
-      <DialogContent className="sm:max-w-[620px] border-border/40 bg-background/95 backdrop-blur-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Sparkles className="h-6 w-6 text-primary animate-pulse" />
-            AI Mockup Creator
-          </DialogTitle>
-          <DialogDescription>
-            {location ? (
-              <>{t("creator_base")} <span className="font-semibold text-foreground">{location.name}</span></>
-            ) : (
-              t("creator_street_mode")
-            )}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[700px] sm:max-h-[90vh] sm:rounded-3xl h-[100dvh] w-screen max-w-none m-0 p-0 flex flex-col overflow-hidden border-none bg-background/98 backdrop-blur-3xl shadow-2xl">
+        <div className="px-6 py-4 border-b border-border/10 bg-muted/20">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold tracking-tight">
+              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+              AI Studio <span className="text-muted-foreground font-normal text-sm ml-2 font-sans">by Shojiki</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {location ? (
+                <>{t("creator_base")} <span className="font-semibold text-foreground">{location.name}</span></>
+              ) : (
+                t("creator_street_mode")
+              )}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="flex flex-col gap-6 py-4 font-sans">
+        <div className="flex-1 overflow-y-auto px-6 py-2 font-sans scroll-smooth">
+          <div className="flex flex-col gap-5 py-4">
 
           {/* ── Upload Zone ─────────────────────────────────── */}
           {!result && !isProcessing && (
@@ -493,6 +496,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* ── Footer ──────────────────────────────────────── */}
