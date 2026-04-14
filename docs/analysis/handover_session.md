@@ -2,16 +2,13 @@
 
 Этот документ фиксирует финальное состояние проекта после успешного вывода в Production на Railway и Vercel, а также полной стабилизации базы данных и AI-пайплайна.
 
-## 1. Текущий статус проекта (Verified 13.04.2026)
-*   **Стадия:** СИСТЕМА ЗАПУЩЕНА В ПРОДАКШЕН.
+## 1. Текущий статус проекта (Verified 14.04.2026)
+*   **Стадия:** СИСТЕМА ПЕРЕВЕДЕНА НА NATIVE AI (GEMINI 3).
 *   **Production URLs:**
     *   Frontend: [https://sjk-smart-view.vercel.app](https://sjk-smart-view.vercel.app)
     *   Backend API: [https://sjk-smartview-production.up.railway.app](https://sjk-smartview-production.up.railway.app)
 *   **Data Integrity (No-Mock):** База данных полностью очищена от тестовых данных. Все 160+ локаций — реальные объекты Shojiki Group во Вьетнаме (Terra Royal, Diamond Plaza и др.).
-*   **Infrastructure:**
-    *   **Railway**: Хостинг бэкенда в регионе `asia-southeast1`.
-    *   **PostgreSQL**: Продакшн-база связана через внутреннюю сеть Railway.
-    *   **AI Pipeline**: Modal GPU активен и корректно обрабатывает запросы на наложение (homography).
+*   **AI Engine Upgrade**: Полный отказ от Modal GPU в пользу **Gemini 3 Pro Image (SCHEMA)**. Это снизило задержки ( latency) и повысило фотореализм за счет нативной гармонизации.
 
 ## 2. Ключевые исправления этой сессии
 *   **Connectivity Fix:** Решена проблема 404/CORS путем исправления протокола `https://` в переменной `NEXT_PUBLIC_API_URL` на Vercel.
@@ -25,7 +22,7 @@
 | **Frontend** | Next.js (Vercel) | Static-Dynamic Hybrid, env-only config. |
 | **Backend** | FastAPI (Railway) | Dockerized, region `asia-southeast1`. |
 | **Database** | PostgreSQL | Managed Railway Instance. |
-| **AI Workload** | Modal API | Python, YOLOv11-OBB, OpenCV. |
+| **AI Workload** | Gemini 3 API | Native SCHEMA, Multi-image input. |
 | **Storage** | Firebase | Bucket `sjk-smartview.firebasestorage.app`. |
 
 ## 4. Гайд по поддержке
