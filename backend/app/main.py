@@ -14,8 +14,9 @@ import logging
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, Security, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -62,6 +63,23 @@ print("AI Pipeline: Gemini 3 Pro Native Active (SCHEMA v4.0 Ready) ✓")
 # ─────────────────────────────────────────────────────────────
 _origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
 ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+
+# ─────────────────────────────────────────────────────────────
+# Security
+# ─────────────────────────────────────────────────────────────
+api_key_header = APIKeyHeader(name="X-SJK-Key", auto_error=False)
+
+async def api_key_auth(api_key: str = Security(api_key_header)):
+    """Проверка персонального ключа доступа."""
+    expected_key = os.getenv("ADMIN_API_KEY")
+    # Если ключ не настроен в ENV, временно разрешаем доступ (для деплоя), 
+    # но в продакшене он должен быть.
+    if expected_key and api_key != expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Forbidden: Invalid SJK API Key"
+        )
+    return api_key
 
 # ─────────────────────────────────────────────────────────────
 # App
@@ -114,7 +132,7 @@ async def api_health_check():
         "engine": "nano_banana_pro",
     }
 
-@app.post("/api/v1/admin/reseed", tags=["Admin"])
+@app.post("/api/v1/admin/reseed", tags=["Admin"], dependencies=[Depends(api_key_auth)])
 async def admin_reseed(db: Session = Depends(get_db)):
     """Force re-seed database with updated screen geometry coordinates."""
     try:
@@ -166,7 +184,7 @@ async def get_locations(db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────────────────────
 # Corner Detection
 # ─────────────────────────────────────────────────────────────
-@app.post("/api/v1/mockup/detect-corners", response_model=CornerDetectionResponse, tags=["AI"])
+@app.post("/api/v1/mockup/detect-corners", response_model=CornerDetectionResponse, tags=["AI"], dependencies=[Depends(api_key_auth)])
 async def detect_corners(
     image: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -201,7 +219,7 @@ async def detect_corners(
 # ─────────────────────────────────────────────────────────────
 # History
 # ─────────────────────────────────────────────────────────────
-@app.get("/api/v1/history", response_model=List[MockupHistoryItem], tags=["Mockups"])
+@app.get("/api/v1/history", response_model=List[MockupHistoryItem], tags=["Mockups"], dependencies=[Depends(api_key_auth)])
 async def get_history(
     limit: int = 20,
     offset: int = 0,
@@ -236,7 +254,7 @@ async def get_history(
     return result
 
 
-@app.delete("/api/v1/history/{mockup_id}", tags=["Mockups"])
+@app.delete("/api/v1/history/{mockup_id}", tags=["Mockups"], dependencies=[Depends(api_key_auth)])
 async def delete_mockup(mockup_id: str, db: Session = Depends(get_db)):
     """Удалить запись из истории."""
     try:
@@ -256,7 +274,7 @@ async def delete_mockup(mockup_id: str, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────────────────────
 # Generate Mockup
 # ─────────────────────────────────────────────────────────────
-@app.post("/api/v1/mockup/generate", response_model=GenerationResponse, tags=["AI"])
+@app.post("/api/v1/mockup/generate", response_model=GenerationResponse, tags=["AI"], dependencies=[Depends(api_key_auth)])
 async def generate_mockup(
     creative: UploadFile = File(...),
     background: Optional[UploadFile] = File(None),

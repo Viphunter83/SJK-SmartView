@@ -37,6 +37,7 @@ Railway автоматически обнаружит файл `railway.json` в
 | `FIREBASE_STORAGE_BUCKET` | `sjk-smartview.firebasestorage.app` | Конфиг стораджа. |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | `{"type": "service_account", ...}` | JSON-ключ в одну строку. |
 | `GEMINI_API_KEY` | `AIza...` | Ключ для Premium генерации (Gemini 3 Pro Image). |
+| `ADMIN_API_KEY` | `e305...` | Персональный ключ для авторизации запросов к API (`X-SJK-Key`). |
 
 ### 5. Получение домена
 1. Перейдите во вкладку **Settings** -> **Environment**.
