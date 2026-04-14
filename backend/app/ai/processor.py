@@ -71,69 +71,69 @@ async def process_mockup_premium(
         bg_optimized = _resize_image_for_api(background_bytes, max_dim=3072)
         cr_optimized = _resize_image_for_api(creative_bytes, max_dim=2048)
 
-        # 2. SCHEMA v4.0 Prompt Engineering (Systemic Approach)
-        # We explicitly label the images and provide spatial triggers.
+        # 2. SCHEMA v4.3 Prompt Engineering (Narrative Approach)
+        # Optimized for Nano Banana Pro's advanced spatial reasoning.
         
-        spatial_hint = ""
+        spatial_context = ""
         if corners:
-            spatial_hint = (
-                f"\nSpatial Hint: The target display surface is approximately located at these coordinates: {corners}. "
-                "Use these as anchor points, but verify and refine the exact pixel-perfect edges and stereometry yourself."
+            spatial_context = (
+                f"The target display surface is precisely located at these coordinates: {corners}. "
+                "Use this as the foundation for your pixel-perfect mapping."
             )
 
         prompt = (
-            "[SCHEMA v4.0: High-Fidelity DOOH Integration]\n"
-            "CONTEXT: Professional advertising mockup for Shojiki Group Vietnam.\n"
-            "TASK: Integrat Image 2 (Asset) into the high-priority display surface found in Image 1 (Environment).\n"
-            f"{spatial_hint}\n"
-            "COGNITIVE STEPS:\n"
-            "1. Scene Analysis: Identify the primary digital screen, billboard, or LED surface.\n"
-            "2. Geometric Mapping: Warp Image 2 to fit the surface perfectly, respecting perspective and lens distortion.\n"
-            "3. Photorealistic Blending: Inherit ambient lighting, reflection, and grain from Image 1.\n"
-            "4. Occlusion Handling: If any foreground objects (tree, lamp, person) cover the screen, "
-            "ensure Image 2 is mapped BEHIND them.\n"
-            "OUTPUT: Return ONLY the final integrated image in high resolution."
+            "A high-end professional commercial photograph for an advertising campaign. "
+            "Identify the main digital screen or billboard billboard in Image 1 and integrate the creative asset from Image 2 onto it. "
+            f"{spatial_context} "
+            "The integration must be seamless, with reflections, shadows, and ambient lighting matching the environment perfectly. "
+            "Maintain occlusion integrity: people, vehicles, or structures in the foreground must remain in front of the screen. "
+            "Output the final result in 2K high-definition resolution."
         )
 
-        logger.info(f"Calling {GEMINI_MODEL_ID} with Thinking: HIGH and SCHEMA v4.0...")
+        logger.info("Calling Nano Banana Pro (Gemini 3 Pro Image Preview) [2K Mode]...")
         
-        # 3. Native SDK Call with Thinking Budget
+        # 3. Native SDK Call (Nano Banana 2026 Syntax)
         response = client.models.generate_content(
-            model=GEMINI_MODEL_ID,
-            contents=[
-                types.Part.from_bytes(data=bg_optimized, mime_type='image/jpeg'),
-                types.Part.from_bytes(data=cr_optimized, mime_type='image/jpeg'),
-                prompt
-            ],
+            model="gemini-3-pro-image-preview",
+            contents=[prompt, bg_optimized, cr_optimized],
             config=types.GenerateContentConfig(
+                response_modalities=['IMAGE'],
                 thinking_config=types.ThinkingConfig(
-                    thinking_level=types.ThinkingLevel.HIGH
+                    thinking_level="High",
+                    include_thoughts=True
                 ),
-                response_modalities=['IMAGE']
+                image_config=types.ImageConfig(
+                    aspect_ratio="16:9",
+                    image_size="2K"
+                )
             )
         )
 
-        # 4. Critical Response Handling
-        if not response.candidates or len(response.candidates) == 0:
-            logger.error("Gemini AI blocked the request (No candidates). Check Safety Filters.")
-            raise ValueError("AI_SAFETY_BLOCK: The request was blocked by safety filters.")
+        # 4. Response Extraction & Validation
+        if not response.candidates:
+            logger.error("Nano Banana Pro: Empty candidates. Safety block suspected.")
+            raise ValueError("EMPTY_CANDIDATES")
 
-        candidate = response.candidates[0]
-        if candidate.finish_reason != types.FinishReason.STOP and candidate.finish_reason != types.FinishReason.MAX_TOKENS:
-            logger.error(f"Gemini integration failed. Finish Reason: {candidate.finish_reason}")
-            raise ValueError(f"AI_PIPELINE_ERROR: {candidate.finish_reason}")
-
-        for part in candidate.content.parts:
+        for part in response.parts:
+            # High-fidelity image extraction from 2026 SDK
+            if hasattr(part, 'as_image'):
+                img = part.as_image()
+                img_byte_arr = io.BytesIO()
+                img.save(img_byte_arr, format='JPEG', quality=95)
+                logger.info("Nano Banana Pro: Image generation successful (2K).")
+                return img_byte_arr.getvalue()
+            
             if part.inline_data:
-                logger.info("SCHEMA v4.0 Premium harmonization successful.")
+                logger.info("Nano Banana Pro: Image data extracted from inline_data.")
                 return part.inline_data.data
         
-        raise ValueError("AI_PART_ERROR: Model did not return image data.")
+        raise ValueError("NO_IMAGE_RETURNED")
 
     except Exception as e:
-        logger.error(f"Gemini SCHEMA v4.0 Critical Error: {e}")
-        # Only fallback if it's a connectivity/API error, not a logic error.
-        # But for user experience, returning standard blend as last resort.
+        import traceback
+        logger.error("NANO BANANA CRITICAL ERROR [%s]: %s", type(e).__name__, str(e))
+        logger.error(traceback.format_exc())
+        # Safety fallback to OpenCV standard processing
         return process_mockup_standard(background_bytes, creative_bytes, corners)
 
 def _get_draft_bytes(draft):
