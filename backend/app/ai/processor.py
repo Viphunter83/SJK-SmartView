@@ -103,17 +103,30 @@ async def process_mockup_premium(
 
         logger.info("Calling Nano Banana Pro (Gemini 3 Pro Image Preview) [2K Mode]...")
         
-        # 3. Native SDK Call (Nano Banana 2026 Syntax)
-        response = client.models.generate_content(
-            model="gemini-3-pro-image-preview",
-            contents=[prompt, bg_part, cr_part],
-            config=types.GenerateContentConfig(
-                response_modalities=['IMAGE'],
-                image_config=types.ImageConfig(
-                    aspect_ratio="16:9"
+        # 3. Native SDK Call (Nano Banana 2026 Syntax) - Intermittent Google 500 Retry Logic
+        import time
+        from google.genai import errors
+        
+        max_retries = 3
+        response = None
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model="gemini-3-pro-image-preview",
+                    contents=[prompt, bg_part, cr_part],
+                    config=types.GenerateContentConfig(
+                        response_modalities=['IMAGE'],
+                        image_config=types.ImageConfig(
+                            aspect_ratio="16:9"
+                        )
+                    )
                 )
-            )
-        )
+                break  # Success
+            except errors.ServerError as e:
+                logger.warning(f"Nano Banana Pro: Google Server 500 Error on attempt {attempt+1}/{max_retries}. Retrying in 3s...")
+                if attempt == max_retries - 1:
+                    raise  # Exhausted retries
+                time.sleep(3)
 
         # 4. Response Extraction & Validation
         if getattr(response, "candidates", None) is None:
