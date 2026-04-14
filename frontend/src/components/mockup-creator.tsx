@@ -68,7 +68,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [resultIsPremium, setResultIsPremium] = React.useState(false)
   const [isDetecting, setIsDetecting] = React.useState(false)
-  const [usePremium, setUsePremium] = React.useState(false)
+  const [usePremium, setUsePremium] = React.useState(true)
   const [points, setPoints] = React.useState<Point[]>(
     location?.screen_geometry?.length === 4
       ? location.screen_geometry
@@ -507,25 +507,14 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           </Button>
 
           {stage === 'idle' && (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setUsePremium(!usePremium)}
-                className={cn(
-                  "rounded-full gap-2 transition-all",
-                  usePremium ? "border-purple-500 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20" : ""
-                )}
-              >
-                <Sparkles className={cn("h-4 w-4", usePremium ? "animate-pulse" : "")} />
-                {usePremium ? "Premium Gemini Native Active" : "Enable Premium Gemini"}
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full justify-end">
               <Button
                 disabled={!creativeFile || (!location && !backgroundFile)}
                 onClick={handleGenerate}
                 className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 rounded-full shadow-lg shadow-primary/20"
               >
-                {usePremium ? <Sparkles className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-                {usePremium ? "Generate Premium" : t("creator_generate")}
+                <Sparkles className="h-4 w-4" />
+                {t("creator_generate")}
               </Button>
             </div>
           )}

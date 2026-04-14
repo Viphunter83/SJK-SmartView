@@ -1,12 +1,12 @@
 {
   "name": "SJK SmartView",
-  "short_name": "SmartView",
-  "description": "AI-powered DOOH mockup generator for Shojiki Group Vietnam",
+  "short_name": "SJK View",
+  "description": "Premium AI DOOH Mockup Studio for Shojiki Group Vietnam",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
-  "orientation": "landscape",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon-192.png",

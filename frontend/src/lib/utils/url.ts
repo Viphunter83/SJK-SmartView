@@ -19,13 +19,31 @@ export function getFullImageUrl(url: string | null | undefined): string {
 
 /**
  * Скачать файл по URL с заданным именем.
+ * Использует fetch и Blob для преодоления проблемы кросс-доменного (CORS) открытия в новой вкладке.
  */
-export function downloadFile(url: string, filename: string): void {
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.target = "_blank";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+export async function downloadFile(url: string, filename: string): Promise<void> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Network response was not ok");
+    const blob = await response.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error("Download failed, using fallback:", error);
+    // Фолбэк, если CORS заблокировал fetch
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 }
