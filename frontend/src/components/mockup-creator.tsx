@@ -68,6 +68,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
   const [usedModal, setUsedModal] = React.useState(false)
   const [isDetecting, setIsDetecting] = React.useState(false)
+  const [usePremium, setUsePremium] = React.useState(false)
   const [points, setPoints] = React.useState<Point[]>(
     location?.screen_geometry?.length === 4
       ? location.screen_geometry
@@ -180,6 +181,7 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           formData.append("creative", creativeFile)
           formData.append("background", bgFile)
           formData.append("location_id", location?.id || "custom")
+          formData.append("use_premium", String(usePremium))
           if (renderCorners && renderCorners.length === 4) {
             formData.append("corners_json", JSON.stringify(renderCorners))
           }
@@ -495,14 +497,27 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
           </Button>
 
           {stage === 'idle' && (
-            <Button
-              disabled={!creativeFile || (!location && !backgroundFile)}
-              onClick={handleGenerate}
-              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 rounded-full shadow-lg shadow-primary/20"
-            >
-              <Sparkles className="h-4 w-4" />
-              {t("creator_generate")}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setUsePremium(!usePremium)}
+                className={cn(
+                  "rounded-full gap-2 transition-all",
+                  usePremium ? "border-purple-500 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20" : ""
+                )}
+              >
+                <Sparkles className={cn("h-4 w-4", usePremium ? "animate-pulse" : "")} />
+                {usePremium ? "Premium AI Active" : "Enable Premium AI"}
+              </Button>
+              <Button
+                disabled={!creativeFile || (!location && !backgroundFile)}
+                onClick={handleGenerate}
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-10 rounded-full shadow-lg shadow-primary/20"
+              >
+                {usePremium ? <Sparkles className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+                {usePremium ? "Generate Premium" : t("creator_generate")}
+              </Button>
+            </div>
           )}
 
           {stage === 'completed' && (

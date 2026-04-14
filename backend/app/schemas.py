@@ -41,6 +41,7 @@ class GenerationResponse(BaseModel):
     mockup_url: Optional[str] = None
     processing_time: float = 0.0
     error: Optional[str] = None
+    mode: Optional[str] = "standard"
 
 
 class MockupHistoryItem(BaseModel):

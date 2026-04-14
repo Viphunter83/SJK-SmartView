@@ -3,7 +3,7 @@
 - **Frontend (Vercel)**: [https://sjk-smart-view.vercel.app](https://sjk-smart-view.vercel.app)
 - **Backend API (Railway)**: [https://sjk-smartview-production.up.railway.app](https://sjk-smartview-production.up.railway.app)
 - **Database (PostgreSQL)**: Connected via Railway Internal Networking.
-- **AI Pipeline**: Active (Modal GPU + OpenCV Fallback).
+- **AI Pipeline**: Active (Gemini 3 Pro Image + Local OpenCV Engine).
 - **Region**: `asia-southeast1` (Singapore) for optimal Vietnam latency.
 
 ---
@@ -36,8 +36,7 @@ Railway автоматически обнаружит файл `railway.json` в
 | `DATABASE_URL` | `postgresql://...` | Внутренний URL базы `postgres.railway.internal`. |
 | `FIREBASE_STORAGE_BUCKET` | `sjk-smartview.firebasestorage.app` | Конфиг стораджа. |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | `{"type": "service_account", ...}` | JSON-ключ в одну строку. |
-| `MODAL_TOKEN_ID` | `ak-...` | |
-| `MODAL_TOKEN_SECRET` | `as-...` | |
+| `GEMINI_API_KEY` | `AIza...` | Ключ для Premium генерации (Gemini 3 Pro Image). |
 
 ### 5. Получение домена
 1. Перейдите во вкладку **Settings** -> **Environment**.

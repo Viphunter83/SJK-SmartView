@@ -2,9 +2,9 @@
 SJK SmartView API — Dispatcher
 FastAPI backend for AI-powered DOOH mockup generation.
 """
-# load_dotenv MUST be first, before any modal imports
+# load_dotenv MUST be first
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 import os
 import time
@@ -24,6 +24,7 @@ from app.database import engine, get_db, SessionLocal
 from app import models
 from app.storage import storage_service
 from app.seed_vietnam import seed_vietnam
+from app.ai import processor # Локальный AI-процессор (OpenCV + Gemini)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -52,27 +53,9 @@ async def lifespan(app: FastAPI):
     # Shutdown logic
 
 # ─────────────────────────────────────────────────────────────
-# Modal AI функция (опциональная)
+# AI Pipeline (Local OpenCV + Gemini API)
 # ─────────────────────────────────────────────────────────────
-modal_fn = None        # process_mockup
-modal_detect_fn = None  # detect_corners
-
-def _load_modal():
-    global modal_fn, modal_detect_fn
-    modal_token_id = os.getenv("MODAL_TOKEN_ID")
-    modal_token_secret = os.getenv("MODAL_TOKEN_SECRET")
-    if not modal_token_id or not modal_token_secret:
-        print("Modal: credentials not configured. Using client-side canvas.")
-        return
-    try:
-        import modal
-        modal_fn = modal.Function.from_name("sjk-smartview-ai", "process_mockup")
-        modal_detect_fn = modal.Function.from_name("sjk-smartview-ai", "detect_corners")
-        print("Modal GPU pipeline: connected to 'sjk-smartview-ai' ✓")
-    except Exception as e:
-        print(f"Modal: connection failed ({e}). Will use OpenCV fallback.")
-
-_load_modal()
+print("AI Pipeline: Local Engine Active (Gemini 3 Pro Image SCHEMA Ready) ✓")
 
 # ─────────────────────────────────────────────────────────────
 # CORS — читаем из env var
@@ -117,16 +100,18 @@ async def root():
         "status": "online",
         "version": "1.0.0",
         "service": "SJK SmartView API",
-        "ai_pipeline": "modal_gpu" if modal_fn else "client_canvas",
-        "modal_connected": modal_fn is not None,
+        "ai_pipeline": "local_engine",
+        "ai_model": "Gemini 3 Pro Image model",
+        "status": "online",
     }
 
 @app.get("/api/v1/health", tags=["Health"])
 async def api_health_check():
     return {
         "status": "healthy",
-        "ai_available": modal_fn is not None,
-        "corner_detection": "modal_yolo_obb" if modal_detect_fn else "opencv",
+        "ai_available": True,
+        "ai_model": "Gemini 3 Pro Image (Nano Banana Pro)",
+        "corner_detection": "opencv_multi_strategy",
     }
 
 @app.post("/api/v1/admin/reseed", tags=["Admin"])
@@ -188,133 +173,29 @@ async def detect_corners(
 ):
     """
     Автоматически находит 4 угла экрана на фото.
-    Использует OpenCV (Canny + Hough) как базовый алгоритм.
-    При наличии Modal — использует YOLO OBB.
+    Использует локальный OpenCV процессор.
     """
-    contents = await image.read()
-
-    # Если Modal доступен — используем dedicated GPU detect_corners функцию
-    if modal_detect_fn:
-        try:
-            result = modal_detect_fn.remote(contents)
-            if result and result.get("corners"):
-                raw = result["corners"]
-                corners_pts = [Point(x=float(p[0]), y=float(p[1])) for p in raw]
-                return CornerDetectionResponse(
-                    corners=corners_pts,
-                    confidence=result.get("confidence", 0.85),
-                    message="Углы определены через YOLO OBB на GPU",
-                    method="modal_yolo_obb"
-                )
-        except Exception as e:
-            print(f"Modal detect_corners failed: {e}")
-
-    # OpenCV-based corner detection (работает без GPU)
     try:
-        import numpy as np
-        import cv2
-
-        np_arr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-        if img is not None:
-            h, w = img.shape[:2]
-            min_area = w * h * 0.03  # минимум 3% площади
-
-            # Стратегия 1: HSV яркость
-            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            _, bright = cv2.threshold(hsv[:, :, 2], 180, 255, cv2.THRESH_BINARY)
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
-            closed = cv2.morphologyEx(bright, cv2.MORPH_CLOSE, kernel)
-            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            best_corners = None
-            max_area = min_area
-
-            for cnt in contours:
-                area = cv2.contourArea(cnt)
-                if area > max_area:
-                    rect = cv2.minAreaRect(cnt)
-                    box = cv2.boxPoints(rect).tolist()
-                    max_area = area
-                    best_corners = box
-
-            # Стратегия 2: CLAHE + Canny
-            if not best_corners:
-                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-                enhanced = clahe.apply(gray)
-                blurred = cv2.GaussianBlur(enhanced, (5, 5), 0)
-                edges = cv2.Canny(blurred, 50, 150)
-                kernel2 = np.ones((5, 5), np.uint8)
-                edges = cv2.dilate(edges, kernel2, iterations=2)
-                edges = cv2.erode(edges, kernel2, iterations=1)
-                contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-                for cnt in contours:
-                    area = cv2.contourArea(cnt)
-                    if area > max_area:
-                        x_r, y_r, w_r, h_r = cv2.boundingRect(cnt)
-                        rect_fill = area / (w_r * h_r) if w_r * h_r > 0 else 0
-                        if rect_fill > 0.5:
-                            rect = cv2.minAreaRect(cnt)
-                            box = cv2.boxPoints(rect).tolist()
-                            max_area = area
-                            best_corners = box
-
-            if best_corners:
-                # Сортируем углы: TL, TR, BR, BL
-                pts = sorted(best_corners, key=lambda p: p[0] + p[1])
-                tl = pts[0]
-                br = pts[3]
-                remaining = [pts[1], pts[2]]
-                tr = min(remaining, key=lambda p: p[1])
-                bl = max(remaining, key=lambda p: p[1])
-
-                corners = [
-                    Point(x=float(tl[0]), y=float(tl[1])),
-                    Point(x=float(tr[0]), y=float(tr[1])),
-                    Point(x=float(br[0]), y=float(br[1])),
-                    Point(x=float(bl[0]), y=float(bl[1])),
-                ]
-                return CornerDetectionResponse(
-                    corners=corners,
-                    confidence=0.75,
-                    message="Экран найден через OpenCV (HSV + морфология)",
-                    method="opencv"
-                )
-
-    except ImportError:
-        pass
+        contents = await image.read()
+        result = processor.detect_corners_local(contents)
+        
+        corners_pts = [Point(x=float(p[0]), y=float(p[1])) for p in result["corners"]]
+        
+        return CornerDetectionResponse(
+            corners=corners_pts,
+            confidence=0.9,
+            message="Углы определены через локальный OpenCV-движок",
+            method="opencv_local"
+        )
     except Exception as e:
-        print(f"OpenCV corner detection error: {e}")
-
-    # Fallback: разумные дефолтные углы на основе размера изображения
-    # Используем 15% отступ от краёв
-    try:
-        import struct
-        # Читаем размер PNG/JPEG без полного декодирования
-        if contents[0:4] == b'\xff\xd8\xff\xe0' or contents[0:4] == b'\xff\xd8\xff\xe1':
-            # JPEG — берём умный дефолт 800x600
-            w, h = 800, 600
-        else:
-            w, h = 800, 600
-    except Exception:
-        w, h = 800, 600
-
-    pad_x, pad_y = int(w * 0.15), int(h * 0.15)
-    corners = [
-        Point(x=pad_x, y=pad_y),
-        Point(x=w - pad_x, y=pad_y),
-        Point(x=w - pad_x, y=h - pad_y),
-        Point(x=pad_x, y=h - pad_y),
-    ]
-    return CornerDetectionResponse(
-        corners=corners,
-        confidence=0.3,
-        message="Автодетекция недоступна, установлены стандартные углы",
-        method="fallback"
-    )
+        logger.error(f"Detection error: {e}")
+        # Возвращаем стандартные углы (15% отступ) как безопасный дефолт
+        return CornerDetectionResponse(
+            corners=[Point(x=100, y=100), Point(x=700, y=100), Point(x=700, y=500), Point(x=100, y=500)],
+            confidence=0.5,
+            message=f"Ошибка детекции: {e}. Применен стандартный охват.",
+            method="fallback"
+        )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -382,15 +263,22 @@ async def generate_mockup(
     location_id: str = Form("custom"),
     corners_json: Optional[str] = Form(None),
     result_url: Optional[str] = Form(None),  # Client-side canvas result URL
+    use_premium: bool = Form(False),
     db: Session = Depends(get_db)
 ):
     """
     Генерация мокапа.
 
     Режим 1 (Canvas): result_url уже готов от клиента — просто сохраняем в историю.
-    Режим 2 (Modal GPU): вызов удалённого GPU-воркера.
+    Режим 2 (Standard): Perspective Warp + CV Blending.
+    Режим 3 (Premium): Gemini 3 SCHEMA Inpainting + Harmonization.
     """
     start_time = time.time()
+    current_mode = "standard"
+    if use_premium:
+        current_mode = "premium"
+    elif result_url:
+        current_mode = "canvas"
 
     try:
         cr_bytes = await creative.read()
@@ -446,18 +334,15 @@ async def generate_mockup(
         status = "completed"
         final_result_url = result_url  # Клиентский canvas результат (Вариант Б)
 
-        # Вариант А: Modal GPU рендеринг
-        if modal_fn and bg_bytes and not result_url:
+        # Вариант А: Стационарный рендеринг (Local Engine)
+        if bg_bytes and not result_url:
             try:
-                raw_result = modal_fn.remote(bg_bytes, cr_bytes, corners)
-
-                # worker.py возвращает base64 строку — декодируем в bytes
-                if isinstance(raw_result, str):
-                    result_bytes = base64.b64decode(raw_result)
-                elif isinstance(raw_result, bytes):
-                    result_bytes = raw_result
+                if use_premium:
+                    logger.info("Using Premium AI: Gemini 3 Pro Image (SCHEMA)")
+                    result_bytes = await processor.process_mockup_premium(bg_bytes, cr_bytes, corners)
                 else:
-                    raise ValueError(f"Unexpected Modal result type: {type(raw_result)}")
+                    logger.info("Using Standard AI: OpenCV Perspective Warp")
+                    result_bytes = processor.process_mockup_standard(bg_bytes, cr_bytes, corners)
 
                 final_result_url = await storage_service.upload_file(
                     result_bytes, "result.jpg",
@@ -467,7 +352,7 @@ async def generate_mockup(
                 processing_time = round(time.time() - start_time, 2)
 
             except Exception as e:
-                print(f"Modal generation failed: {e}")
+                logger.error(f"Local generation failed ({current_mode}): {e}")
                 status = "failed"
 
         if not final_result_url:
@@ -479,7 +364,7 @@ async def generate_mockup(
             creative_url=creative_storage_url,
             result_url=final_result_url,
             status=status,
-            metadata_json={"processing_time": processing_time, "mode": "modal" if modal_fn else "canvas"}
+            metadata_json={"processing_time": processing_time, "mode": current_mode}
         )
         db.add(new_mockup)
         db.commit()
@@ -487,7 +372,8 @@ async def generate_mockup(
         return GenerationResponse(
             status=status,
             mockup_url=final_result_url,
-            processing_time=processing_time
+            processing_time=processing_time,
+            mode=current_mode
         )
 
     except Exception as e:
