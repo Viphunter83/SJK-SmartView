@@ -11,7 +11,7 @@ import time
 import uuid
 import base64
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
@@ -263,7 +263,7 @@ async def generate_mockup(
     location_id: str = Form("custom"),
     corners_json: Optional[str] = Form(None),
     result_url: Optional[str] = Form(None),
-    use_premium: Any = Form("false"), # Используем Any для гибкого парсинга
+    use_premium: str = Form("false"), # Используем str для надежности при деплое
     db: Session = Depends(get_db)
 ):
     start_time = time.time()
