@@ -105,7 +105,7 @@ async def process_mockup_premium(
         
         # 3. Native SDK Call (Nano Banana 2026 Syntax)
         response = client.models.generate_content(
-            model="gemini-3.1-flash-image-preview",
+            model="gemini-3-pro-image-preview",
             contents=[prompt, bg_part, cr_part],
             config=types.GenerateContentConfig(
                 response_modalities=['IMAGE'],
