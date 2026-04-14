@@ -262,29 +262,25 @@ async def generate_mockup(
     background: Optional[UploadFile] = File(None),
     location_id: str = Form("custom"),
     corners_json: Optional[str] = Form(None),
-    result_url: Optional[str] = Form(None),  # Client-side canvas result URL
-    use_premium: bool = Form(False),
+    result_url: Optional[str] = Form(None),
+    use_premium: Any = Form("false"), # Используем Any для гибкого парсинга
     db: Session = Depends(get_db)
 ):
-    """
-    Генерация мокапа.
-
-    Режим 1 (Canvas): result_url уже готов от клиента — просто сохраняем в историю.
-    Режим 2 (Standard): Perspective Warp + CV Blending.
-    Режим 3 (Premium): Gemini 3 SCHEMA Inpainting + Harmonization.
-    """
     start_time = time.time()
-    current_mode = "standard"
-    if use_premium:
-        current_mode = "premium"
-    elif result_url:
-        current_mode = "canvas"
+    
+    # Жесткий парсинг булевого значения
+    is_premium_active = str(use_premium).lower() in ("true", "1", "t", "on", "yes")
+    
+    logger.info(f"--- GENERATION REQUEST ---")
+    logger.info(f"Location: {location_id}, Use Premium: {is_premium_active} (Raw: {use_premium})")
+    logger.info(f"Has Result URL (Canvas): {bool(result_url)}")
+
+    current_mode = "premium" if is_premium_active else ("canvas" if result_url else "standard")
 
     try:
         cr_bytes = await creative.read()
         bg_bytes = await background.read() if background else None
 
-        # Определяем локацию
         db_location_id = None
         corners = None
 
@@ -295,10 +291,7 @@ async def generate_mockup(
                 if loc:
                     db_location_id = loc.id
                     raw = loc.screen_geometry
-                    print(f"DEBUG: Location found: {loc.name}, Raw geometry type: {type(raw)}")
-                    
                     if raw:
-                        # Если это строка (иногда бывает при чтении из некоторых драйверов)
                         if isinstance(raw, str):
                             import json
                             raw = json.loads(raw)
@@ -308,12 +301,9 @@ async def generate_mockup(
                                 corners = [[float(p["x"]), float(p["y"])] for p in raw]
                             elif isinstance(raw[0], (list, tuple)):
                                 corners = [list(p) for p in raw]
-                    
-                    print(f"DEBUG: Parsed corners from DB: {corners}")
             except Exception as e:
-                print(f"ERROR: Failed to parse location geometry: {e}")
+                logger.error(f"Failed to parse location geometry: {e}")
         
-        # Если кастомная локация (или углов в БД нет), но пользователь выбрал точки вручную
         if not corners and corners_json:
             import json
             try:
@@ -321,27 +311,26 @@ async def generate_mockup(
                 if isinstance(parsed_corners, list) and len(parsed_corners) == 4:
                     corners = [[p["x"], p["y"]] for p in parsed_corners]
             except Exception as e:
-                print(f"Warning: Failed to parse corners_json: {e}")
+                logger.error(f"Failed to parse corners_json: {e}")
 
-        # Загружаем креатив в хранилище
+        # Upload creative
         creative_storage_url = await storage_service.upload_file(
             cr_bytes, creative.filename or "creative.jpg",
             content_type=creative.content_type or "image/jpeg",
             folder="creatives"
         )
 
-        processing_time = round(time.time() - start_time, 2)
+        final_result_url = result_url
         status = "completed"
-        final_result_url = result_url  # Клиентский canvas результат (Вариант Б)
 
-        # Вариант А: Стационарный рендеринг (Native AI Engine)
+        # AI Rendering Logic
         if bg_bytes and not result_url:
             try:
-                if use_premium:
-                    logger.info("Using Premium AI: Gemini 3 Pro Native (Thinking: HIGH)")
+                if is_premium_active:
+                    logger.info("TRIGGERING NANO BANANA PRO PIPELINE...")
                     result_bytes = await processor.process_mockup_premium(bg_bytes, cr_bytes, corners)
                 else:
-                    logger.info("Using Standard AI: OpenCV Perspective Local")
+                    logger.info("TRIGGERING OPENCV STANDARD PIPELINE...")
                     result_bytes = processor.process_mockup_standard(bg_bytes, cr_bytes, corners)
 
                 final_result_url = await storage_service.upload_file(
