@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Download, Calendar, Clock, Image as ImageIcon, Sparkles, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { API_ENDPOINTS } from "@/lib/config";
+import { API_ENDPOINTS, SJK_API_KEY } from "@/lib/config";
 import { getFullImageUrl, downloadFile } from "@/lib/utils/url";
 import { useLanguage } from "@/lib/i18n";
 
@@ -35,7 +35,11 @@ export function MockupHistory() {
     setError(null);
     try {
       const url = `${API_ENDPOINTS.HISTORY}?limit=${PAGE_SIZE}&offset=${currentOffset}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          "X-SJK-Key": SJK_API_KEY,
+        },
+      });
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data: MockupHistoryItem[] = await response.json();
 
@@ -64,7 +68,12 @@ export function MockupHistory() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      const response = await fetch(API_ENDPOINTS.DELETE_MOCKUP(id), { method: "DELETE" });
+      const response = await fetch(API_ENDPOINTS.DELETE_MOCKUP(id), {
+        method: "DELETE",
+        headers: {
+          "X-SJK-Key": SJK_API_KEY,
+        },
+      });
       if (response.ok) {
         setHistory((prev) => prev.filter((item) => item.id !== id));
       }

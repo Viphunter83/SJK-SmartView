@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { API_ENDPOINTS } from "@/lib/config"
+import { API_ENDPOINTS, SJK_API_KEY } from "@/lib/config"
 import { getFullImageUrl, downloadFile } from "@/lib/utils/url"
 import { useLanguage } from "@/lib/i18n"
 
@@ -114,6 +114,9 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
       formData.append("image", backgroundFile)
       const response = await fetch(API_ENDPOINTS.DETECT_CORNERS, {
         method: "POST",
+        headers: {
+          "X-SJK-Key": SJK_API_KEY,
+        },
         body: formData,
       })
       if (response.ok) {
@@ -192,6 +195,9 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
 
           const response = await fetch(API_ENDPOINTS.GENERATE_MOCKUP, {
             method: "POST",
+            headers: {
+              "X-SJK-Key": SJK_API_KEY,
+            },
             body: formData,
             signal: controller.signal,
           })
@@ -228,6 +234,9 @@ export function MockupCreator({ location, onClose }: MockupCreatorProps) {
 
           const response = await fetch(API_ENDPOINTS.GENERATE_MOCKUP, {
             method: "POST",
+            headers: {
+              "X-SJK-Key": SJK_API_KEY,
+            },
             body: formData,
             signal: AbortSignal.timeout(10_000),
           })
